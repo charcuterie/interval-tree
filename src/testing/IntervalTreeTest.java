@@ -47,7 +47,7 @@ public class IntervalTreeTest {
     
     private IntervalTree<Impl> randomTree;              // a large random tree
     private Set<Impl> randomValues;
-    private int numRandomElements = 1000;
+    private int numRandomElements = 10000;
     private int valueCeiling = 5000;
     
     private Method mIsBST;                              // private methods
@@ -264,30 +264,26 @@ public class IntervalTreeTest {
 
     @Test
     public void testIsRootTrue() {
-        assertThat(p282Tree.search(p282Root)
-                           .orElseThrow(() -> new IllegalStateException("root not found"))
-                           .isRoot(), is(true));
+        assertThat(n11.isRoot(), is(true));
     }
     
     @Test
     public void testIsRootFalse() {
-        assertThat(p282Tree.search(p282Min)
-                           .orElseThrow(() -> new IllegalStateException("min not found"))
-                           .isRoot(), is(false));
+        assertThat(n1.isRoot(), is(false));
     }
     
     @Test
     public void testMaximum() {
         assertThat(p282Tree.maximum()
-                           .orElseThrow(() -> new IllegalStateException("max not found"))
-                           .getValue(), is(p282Max));
+                           .orElseThrow(() -> new IllegalStateException("max not found")),
+                   is(p282Max));
     }
     
     @Test
     public void testMinimum() {
         assertThat(p282Tree.minimum()
-                           .orElseThrow(() -> new IllegalStateException("min not found"))
-                           .getValue(), is(p282Min));
+                           .orElseThrow(() -> new IllegalStateException("min not found")),
+                   is(p282Min));
     }
     
     @Test
@@ -480,7 +476,7 @@ public class IntervalTreeTest {
     @Test
     public void testIsEmptyAfterSingletonDeletion() {
         singletonTree.insert(singletonValue);
-        singletonTree.maximum().ifPresent(d -> d.delete());
+        singletonTree.deleteMax();
         assertThat(singletonTree.isEmpty(), is(true));
     }
     
@@ -724,16 +720,6 @@ public class IntervalTreeTest {
         @Override
         public int end() {
             return end;
-        }
-
-        @Override
-        public int length() {
-            return end - start;
-        }
-
-        @Override
-        public boolean isAdjacent(Interval other) {
-            return start == other.end() || end == other.start();
         }
         
         @Override

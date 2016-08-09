@@ -20,7 +20,9 @@ public interface Interval extends Comparable<Interval> {
     /**
      * Returns the length of this.
      */
-    int length();
+    default int length() {
+        return end() - start();
+    }
 
     /**
      * Returns if this interval is adjacent to the specified interval.
@@ -29,7 +31,13 @@ public interface Interval extends Comparable<Interval> {
      * @param interval - the interval to compare this one to
      * @return if this interval is adjacent to the specified interval.
      */
-    boolean isAdjacent(Interval interval);
+    default boolean isAdjacent(Interval other) {
+        return start() == other.end() || end() == other.start();
+    }
+    
+    default boolean overlaps(Interval o) {
+        return end() > o.start() && o.end() > start();
+    }
     
     default int compareTo(Interval o) {
         if (start() > o.start()) {
