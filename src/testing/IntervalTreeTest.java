@@ -634,7 +634,7 @@ public class IntervalTreeTest {
     
     @Test
     public void testSingletonTreeDeleteOverlappers() {
-        singletonTree.deleteOverlappers(new Impl(1, 5));
+        assertThat(singletonTree.deleteOverlappers(new Impl(1, 5)), is(true));
     }
     
     @Test
@@ -1027,6 +1027,21 @@ public class IntervalTreeTest {
     @Test
     public void testGappedTreeOverlapsNegative() {
         assertThat(gappedTree.overlaps(new Impl(gappedUpperBound, gappedLowerBound)), is(false));
+    }
+    
+    @Test
+    public void testGappedTreeDeleteOverlappersPositive() {
+        Impl firstInterval = new Impl(0, gappedUpperBound);
+        Impl secondInterval = new Impl(gappedLowerBound, gappedUpperBound + gappedLowerBound);
+        boolean first = gappedTree.deleteOverlappers(firstInterval);
+        boolean second = gappedTree.deleteOverlappers(secondInterval);
+        assertThat(first && second, is(true));
+    }
+    
+    @Test
+    public void testGappedTreeDeleteOverlappersNegative() {
+        Impl interval = new Impl(gappedUpperBound, gappedLowerBound);
+        assertThat(gappedTree.deleteOverlappers(interval), is(false));
     }
     
     /**
