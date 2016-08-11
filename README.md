@@ -16,8 +16,8 @@ overlapping a given interval.
 
 There is a lot of debate on the Internet about which sort of implementation is
 "best": top-down vs bottom-up, 2-3 vs 2-3-4, etc. Whatever the negatives of the
-CLRS implementation may be, the clear benefit is that clear, thorough
-documentation can be found in any university library.
+CLRS implementation may be, the benefit is that clear, thorough documentation
+can be found in any university library.
 
 Additionally, I wanted an implementation that
 
