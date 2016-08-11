@@ -14,10 +14,11 @@ import java.util.Set;
  * extensions mentioned in section 14.3
  * @param <I> - the type of Interval this tree contains
  */
-public class IntervalTree<T extends Interval> {
+public class IntervalTree<T extends Interval> implements Iterable<T> {
 
-    private Node root;
-    private Node nil;
+    private Node root;  // The root Node.
+    private Node nil;   // The sentinel Node to represent the absence of a node.
+    private int size;   // Size of the tree. Updated by insert() and Node#delete()
 
     /**
      * Constructs an empty IntervalTree.
@@ -25,6 +26,7 @@ public class IntervalTree<T extends Interval> {
     public IntervalTree() {
         nil = new Node();
         root = nil;
+        size = 0;
     }
     
     /**
@@ -36,6 +38,7 @@ public class IntervalTree<T extends Interval> {
         nil = new Node();
         root = new Node(t);
         root.blacken();
+        size = 1;
     }
 
     ///////////////////////////////////
@@ -53,37 +56,59 @@ public class IntervalTree<T extends Interval> {
      * The number of intervals stored in this IntervalTree.
      */
     public int size() {
-        return root.size();
+        return size;
     }
     
-    private Optional<Node> search(T t) {
+    private Node search(T t) {
         return root.search(t);
     }
     
     public boolean contains(T t) {
-        return search(t).isPresent();
+        return !search(t).isNil();
     }
     
     public Optional<T> minimum() {
-        return root.minimumNode().map(n -> n.interval());
+        Node n = root.minimumNode();
+        return n.isNil() ? Optional.empty() : Optional.of(n.interval());
     }
     
     public Optional<T> maximum() {
-        return root.maximumNode().map(n -> n.interval());
+        Node n = root.maximumNode();
+        return n.isNil() ? Optional.empty() : Optional.of(n.interval());
     }
     
     public Optional<T> successor(T t) {
-        return search(t).flatMap(n -> n.successor()).map(n -> n.interval);
+        Node n = search(t);
+        if (n.isNil()) {
+            return Optional.empty();
+        }
+
+        n = n.successor();
+        if (n.isNil()) {
+            return Optional.empty();
+        }
+
+        return Optional.of(n.interval());
     }
     
     public Optional<T> predecessor(T t) {
-        return search(t).flatMap(n -> n.predecessor()).map(n -> n.interval);
+        Node n = search(t);
+        if (n.isNil()) {
+            return Optional.empty();
+        }
+
+        n = n.predecessor();
+        if (n.isNil()) {
+            return Optional.empty();
+        }
+
+        return Optional.of(n.interval());
     }
 
     /**
      * An Iterator which traverses the tree in ascending order.
      */
-    public Iterator<T> values() {
+    public Iterator<T> iterator() {
         return new TreeIterator(root);
     }
     
@@ -92,7 +117,7 @@ public class IntervalTree<T extends Interval> {
     }
     
     public boolean overlaps(T t) {
-        return root.anyOverlappingNode(t).isPresent();
+        return !root.anyOverlappingNode(t).isNil();
     }
     
     public int numOverlappers(T t) {
@@ -100,7 +125,8 @@ public class IntervalTree<T extends Interval> {
     }
     
     public Optional<T> minimumOverlapper(T t) {
-        return root.minimumOverlappingNode(t).map(n -> n.interval());
+        Node n = root.minimumOverlappingNode(t);
+        return n.isNil() ? Optional.empty() : Optional.of(n.interval());
     }
     
     ///////////////////////////////
@@ -152,6 +178,7 @@ public class IntervalTree<T extends Interval> {
             z.redden();
             z.insertFixup();
         }
+        size++;
         return true;
     }
     
@@ -165,8 +192,8 @@ public class IntervalTree<T extends Interval> {
      * If the value does not exist in the tree, this method does nothing.
      * @param t - the value to delete from the tree
      */
-    public void delete(T t) {
-        root.search(t).ifPresent(k -> k.delete());
+    public boolean delete(T t) {    // Node#delete does nothing and returns
+        return search(t).delete();  // false if t.isNil()
     }
     
     /**
@@ -175,8 +202,8 @@ public class IntervalTree<T extends Interval> {
      * If there is no minimum value (that is, if the tree is empty), this
      * method does nothing.
      */
-    public void deleteMin() {
-        root.minimumNode().ifPresent(k -> k.delete());
+    public boolean deleteMin() {            // Node#delete does nothing and
+        return root.minimumNode().delete(); // returns false if t.isNil()
     }
     
     /**
@@ -185,24 +212,31 @@ public class IntervalTree<T extends Interval> {
      * If there is no maximum value (that is, if the tree is empty), this
      * method does nothing.
      */
-    public void deleteMax() {
-        root.maximumNode().ifPresent(k -> k.delete());
+    public boolean deleteMax() {            // Node#delete does nothing and
+        return root.maximumNode().delete(); // returns false if t.isNil()
     }
     
     public void deleteOverlappers(T t) {
-        // TODO Currently, this method creates a Set of Nodes, then
-        // deletes them all at once. Can we change this?
+        // TODO 
+        // Replacing the line
+        //    s.forEach(n -> delete(n.interval()))
+        // with
+        //    s.forEach(n -> n.delete())
+        // causes a NullPointerException in resetMaxEnd(). Why?!
+        //
+        // As it stands, every deletion operation causes the tree
+        // to be searched. Fix this, please.
 
         Set<Node> s = new HashSet<Node>();
         Iterator<Node> iter = new OverlappingNodeIterator(root, t);
         iter.forEachRemaining(s::add);
-        s.forEach(n -> n.delete());
+        s.forEach(n -> delete(n.interval()));
     }
 
     /**
      * A representation of a node of an interval tree.
      */
-    public class Node implements Interval {
+    private class Node implements Interval {
         
         /* Most of the "guts" of the interval tree are actually methods called
          * by nodes. For example, IntervalTree#delete(val) searches up the Node
@@ -262,29 +296,19 @@ public class IntervalTree<T extends Interval> {
         ///////////////////////////////////
         
         /**
-         * The number of elements in the subtree rooted at this Node.
-         * <p>
-         * Leaf nodes are not included in the number. The Node calling this
-         * method is included in the number.
-         */
-        public int size() {
-            return isNil() ? 0 : 1 + left.size() + right.size();
-        }
-        
-        /**
          * Searches the subtree rooted at this Node for the given value.
          * @param t - the value to search for
          * @return an Optional containing, if it exists, the Node with the
          * given value; otherwise an empty Optional 
          */
-        private Optional<Node> search(T t) {
+        private Node search(T t) {
 
             Node n = this;
             
             while (!n.isNil() && t.compareTo(n) != 0) {
                 n = t.compareTo(n) == -1 ? n.left : n.right;
             }
-            return n.isNil() ? Optional.empty() : Optional.of(n);
+            return n;
         }
 
         /**
@@ -293,14 +317,14 @@ public class IntervalTree<T extends Interval> {
          * minimum value; otherwise (that is, if this subtree is empty) an
          * empty Optional 
          */
-        private Optional<Node> minimumNode() {
+        private Node minimumNode() {
             
             Node n = this;
             
             while (!n.left.isNil()) {
                 n = n.left;
             }
-            return n.isNil() ? Optional.empty() : Optional.of(n);
+            return n;
         }
 
         /**
@@ -309,14 +333,14 @@ public class IntervalTree<T extends Interval> {
          * maximum value; otherwise (that is, if this subtree is empty) an
          * empty Optional 
          */
-        private Optional<Node> maximumNode() {
+        private Node maximumNode() {
             
             Node n = this;
             
             while (!n.right.isNil()) {
                 n = n.right;
             }
-            return n.isNil() ? Optional.empty() : Optional.of(n);
+            return n;
         }
         
         /**
@@ -325,7 +349,7 @@ public class IntervalTree<T extends Interval> {
          * this one; otherwise (that is, if this Node contains the maximal
          * value in the tree) an empty Optional 
          */
-        private Optional<Node> successor() {
+        private Node successor() {
             
             if (!right.isNil()) {
                 return right.minimumNode();
@@ -338,7 +362,7 @@ public class IntervalTree<T extends Interval> {
                 y = y.parent;
             }
             
-            return y.isNil() ? Optional.empty() : Optional.of(y);
+            return y;
         }
 
         /**
@@ -347,7 +371,7 @@ public class IntervalTree<T extends Interval> {
          * this one; otherwise (that is, if this Node contains the minimal
          * value in the tree) an empty Optional 
          */
-        private Optional<Node> predecessor() {
+        private Node predecessor() {
             
             if (!left.isNil()) {
                 return left.maximumNode();
@@ -360,7 +384,7 @@ public class IntervalTree<T extends Interval> {
                 y = y.parent;
             }
             
-            return y.isNil() ? Optional.empty() : Optional.of(y);
+            return y;
         }
         
         ///////////////////////////////////////
@@ -380,12 +404,12 @@ public class IntervalTree<T extends Interval> {
          * Node's subtree that overlaps the Interval t; otherwise, an empty
          * Optional
          */
-        private Optional<Node> anyOverlappingNode(T t) {
+        private Node anyOverlappingNode(T t) {
             Node x = this;
             while (!x.isNil() && !t.overlaps(x.interval)) {
                 x = !x.left.isNil() && x.left.maxEnd > t.start() ? x.left : x.right;
             }
-            return x.isNil() ? Optional.empty() : Optional.of(x);
+            return x;
         }
         
         /**
@@ -399,18 +423,55 @@ public class IntervalTree<T extends Interval> {
          * this Node's subtree that overlaps the Interval t; otherwise, an
          * empty Optional
          */
-        private Optional<Node> minimumOverlappingNode(T t) {
-            Node x = this;
-            Node rtrn = nil;
-            while (!x.isNil()) {
-                if (x.interval.overlaps(t)) {
-                    if (rtrn.isNil() || rtrn.end() > x.end()) {
-                        rtrn = x;
+        private Node minimumOverlappingNode(T t) {
+
+            Node result = nil;
+            Node n = this;
+
+            if (!n.isNil() && n.maxEnd > t.start()) {
+                while (true) {
+                    if (n.overlaps(t)) {
+
+                        // This node overlaps. There may be a lesser overlapper
+                        // down the left subtree. No need to consider the right
+                        // as all overlappers there will be greater.
+
+                        result = n;
+                        n = n.left;
+
+                        if (n.isNil() || n.maxEnd <= t.start()) {
+                            // Either no left subtree, or nodes can't overlap.
+                            break;
+                        }
+                    } else {
+
+                        // This node doesn't overlap.
+                        // Check the left subtree if an overlapper may be there
+
+                        Node left = n.left;
+                        if (!left.isNil() && left.maxEnd > t.start()) {
+                            n = left;
+                        } else {
+                            
+                        // Left subtree cannot contain an overlapper. Check the
+                        // right sub-tree.
+                        
+                            if (n.start() >= t.end()) {
+                                // Nothing in the right subtree can overlap
+                                break;
+                            }
+
+                            n = n.right;
+                            if (n.isNil() || n.maxEnd <= t.start()) {
+                                // No right subtree, or nodes can't overlap.
+                                break;
+                            }
+                        }
                     }
                 }
-                x = !x.left.isNil() && x.left.maxEnd > t.start() ? x.left : x.right;
             }
-            return rtrn == nil ? Optional.empty() : Optional.of(rtrn);
+
+            return result;
         }
         
         /**
@@ -429,9 +490,9 @@ public class IntervalTree<T extends Interval> {
          * @return an Optional containing, if it exists, the next Interval that
          * overlaps the Interval t; otherwise, an empty Optional
          */
-        private Optional<Node> nextOverlappingNode(T t) {
+        private Node nextOverlappingNode(T t) {
             Node x = this;
-            Optional<Node> rtrn = Optional.empty();
+            Node rtrn = nil;
 
             // First, check the right subtree for its minimum overlapper.
             if (!right.isNil()) {
@@ -440,9 +501,9 @@ public class IntervalTree<T extends Interval> {
             
             // If we didn't find it in the right subtree, walk up the tree and
             // check the parents of left-children as well as their right subtrees.
-            while (!x.parent.isNil() && !rtrn.isPresent()) {
+            while (!x.parent.isNil() && rtrn.isNil()) {
                 if (x.isLeftChild()) {
-                    rtrn = x.parent.overlaps(t) ? Optional.of(x.parent)
+                    rtrn = x.parent.overlaps(t) ? x.parent
                                                 : x.parent.right.minimumOverlappingNode(t);
                 }
                 x = x.parent;
@@ -484,16 +545,16 @@ public class IntervalTree<T extends Interval> {
          * Node may be deleted and that Node's contents copied into this one,
          * overwriting the previous contents.
          */
-        private void delete() {
+        private boolean delete() {
             
             if (isNil()) {  // Can't delete the sentinel node.
-                return;
+                return false;
             }
             
             Node y = this;
 
             if (hasTwoChildren()) {     // If the node to remove has two children,
-                y = successor().get();  // copy the successor's data into it and
+                y = successor();        // copy the successor's data into it and
                 copyData(y);            // remove the successor. The successor is
                 maxEndFixup();          // guaranteed to both exist and have at most
             }                           // one child, so we've converted the two-
@@ -517,6 +578,9 @@ public class IntervalTree<T extends Interval> {
             if (y.isBlack) {
                 x.deleteFixup();
             }
+            
+            size--;
+            return true;
         }
         
         ////////////////////////////////////////////////
@@ -547,14 +611,14 @@ public class IntervalTree<T extends Interval> {
         /**
          * Whether or not this Node is the right child of its parent.
          */
-        private boolean isRightChild() {
+        public boolean isRightChild() {
             return this == parent.right;
         }
 
         /**
          * Whether or not this Node has no children, i.e., is a leaf.
          */
-        private boolean hasNoChildren() {
+        public boolean hasNoChildren() {
             return left.isNil() && right.isNil();
         }
 
@@ -562,7 +626,7 @@ public class IntervalTree<T extends Interval> {
          * Whether or not this Node has two children, i.e., neither of its
          * children are leaves.
          */
-        private boolean hasTwoChildren() {
+        public boolean hasTwoChildren() {
             return !left.isNil() && !right.isNil();
         }
         
@@ -583,7 +647,7 @@ public class IntervalTree<T extends Interval> {
         /**
          * Whether or not this Node's color is red.
          */
-        private boolean isRed() {
+        public boolean isRed() {
             return !isBlack;
         }
         
@@ -919,22 +983,25 @@ public class IntervalTree<T extends Interval> {
      */
     private class TreeNodeIterator implements Iterator<Node> {
 
-        private Optional<Node> next;
+        private Node next;
         
         private TreeNodeIterator(Node root) {
-            next = root.isNil() ? Optional.empty() : root.minimumNode();
+            next = root.minimumNode();
         }
         
         @Override
         public boolean hasNext() {
-            return next.isPresent();
+            return !next.isNil();
         }
 
         @Override 
         public Node next() {
-            Node nextNode = next.orElseThrow(() -> new NoSuchElementException("Interval tree has no more elements"));
-            next = nextNode.successor();
-            return nextNode;
+            if (!hasNext()) {
+                throw new NoSuchElementException("Interval tree has no more elements.");
+            }
+            Node rtrn = next;
+            next = rtrn.successor();
+            return rtrn;
         }   
     }
 
@@ -962,7 +1029,7 @@ public class IntervalTree<T extends Interval> {
     
     private class OverlappingNodeIterator implements Iterator<Node> {
         
-        private Optional<Node> next;
+        private Node next;
         private T interval;
         
         private OverlappingNodeIterator(Node root, T t) {
@@ -972,14 +1039,17 @@ public class IntervalTree<T extends Interval> {
         
         @Override
         public boolean hasNext() {
-            return next.isPresent();
+            return !next.isNil();
         }
         
         @Override
         public Node next() {
-            Node nextNode = next.orElseThrow(() -> new NoSuchElementException("Interval tree has no more overlapping nodes."));
-            next = nextNode.nextOverlappingNode(interval);
-            return nextNode;
+            if (!hasNext()) {
+                throw new NoSuchElementException("Interval tree has no more overlapping elements.");
+            }
+            Node rtrn = next;
+            next = rtrn.nextOverlappingNode(interval);
+            return rtrn;
         }
     }
     

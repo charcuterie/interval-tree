@@ -3,19 +3,22 @@ package testing;
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertThat;
 
-import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.util.HashMap;
-import java.util.HashSet;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Iterator;
-import java.util.Map;
-import java.util.Map.Entry;
+import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.Random;
 import java.util.Set;
+import java.util.TreeSet;
+import java.util.stream.StreamSupport;
 
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 
 import datastructures.Interval;
 import datastructures.IntervalTree;
@@ -24,53 +27,35 @@ public class IntervalTreeTest {
 
     private IntervalTree<Impl> emptyTree;                 // an empty tree
     
-    private IntervalTree<Impl> singletonTree;             // a tree with one node: [0, 10)
-    private Impl singletonValue = new Impl(0, 10);
+    private IntervalTree<Impl> singletonTree;             // a tree with one node:
+    private Impl singletonValue = new Impl(0, 10);        // [0, 10)
+    private Impl copyOfSingletonValue = new Impl(singletonValue);
     
-    private IntervalTree<Impl> p282Tree;                  // the tree in CLRS, 2nd ed, pg 282
-    private IntervalTree<Impl>.Node n11;                  // see setup() for more information
-    private IntervalTree<Impl>.Node n2;
-    private IntervalTree<Impl>.Node n1;
-    private IntervalTree<Impl>.Node n14;
-    private IntervalTree<Impl>.Node n15;
-    private IntervalTree<Impl>.Node n7;
-    private IntervalTree<Impl>.Node n5;
-    private IntervalTree<Impl>.Node n8;
-    private IntervalTree<Impl>.Node n4;
+    private IntervalTree<Impl> randomTree;
+    private int randomUpperBound = 3000;
+    private int numRandomIntervals = 5000;
+    private Set<Impl> randomIntervals;
     
-    private Impl p282Root = new Impl(11);
-    private Impl p282Min = new Impl(1);
-    private Impl p282Max = new Impl(15);
-    private Map<Impl, Impl> p282Successors;
-    private Map<Impl, Impl> p282Predecessors;
-    private int p282NumElems = 9;
+    private IntervalTree<Impl> gappedTree;  // A tree with a dead-zone in the
+    private int gappedUpperBound = 3000;    // middle to test overlap methods
+    private int gappedLowerBound = 4000;
+    private int numGappedIntervals = 2500;  // in each section
+    private Set<Impl> gappedIntervals;
     
-    private IntervalTree<Impl> randomTree;              // a large random tree
-    private Set<Impl> randomValues;
-    private int numRandomElements = 10000;
-    private int valueCeiling = 5000;
     
-    private Method mIsBST;                              // private methods
+    // Private debugging methods.
+    private Method mIsBST;
     private Method mHasValidRedColoring;
-    private Method mInsertFixup;
     private Method mIsBalanced;
     private Method mHasConsistentMaxEnds;
-    
-    private Field fNil;                                 // private fields
-    private Field fRoot;
-    private Field fLeft;
-    private Field fRight;
-    private Field fParent;
-    private Field fIsBlack;
-    private Field fMaxEnd;
 
     @Before
     public void setup() throws NoSuchMethodException, SecurityException,
     NoSuchFieldException, IllegalArgumentException, IllegalAccessException {
 
-        ////////////////////////////////////////////////////////////////////
-        // Make private methods and fields accessible for easier testing. //
-        ////////////////////////////////////////////////////////////////////
+        /////////////////////////////////////////////////////////
+        // Make private methods accessible for easier testing. //
+        /////////////////////////////////////////////////////////
         
         mIsBST = IntervalTree.class.getDeclaredMethod("isBST");
         mIsBST.setAccessible(true);
@@ -84,248 +69,130 @@ public class IntervalTreeTest {
         mHasConsistentMaxEnds = IntervalTree.class.getDeclaredMethod("hasConsistentMaxEnds");
         mHasConsistentMaxEnds.setAccessible(true);
         
-        mInsertFixup = IntervalTree.Node.class.getDeclaredMethod("insertFixup");
-        mInsertFixup.setAccessible(true);
-
-        fNil = IntervalTree.class.getDeclaredField("nil");
-        fNil.setAccessible(true);        
-        
-        fRoot = IntervalTree.class.getDeclaredField("root");
-        fRoot.setAccessible(true);
-
-        fLeft = IntervalTree.Node.class.getDeclaredField("left");
-        fLeft.setAccessible(true);
-
-        fRight = IntervalTree.Node.class.getDeclaredField("right");
-        fRight.setAccessible(true);
-
-        fParent = IntervalTree.Node.class.getDeclaredField("parent");
-        fParent.setAccessible(true);
-        
-        fIsBlack = IntervalTree.Node.class.getDeclaredField("isBlack");
-        fIsBlack.setAccessible(true);
-        
-        fMaxEnd = IntervalTree.Node.class.getDeclaredField("maxEnd");
-        fMaxEnd.setAccessible(true);
-        
-        ////////////////////
-        // The easy trees //
-        ////////////////////
-        
         emptyTree = new IntervalTree<Impl>();
-        
         singletonTree = new IntervalTree<Impl>(singletonValue);
         
-        ////////////////////////////////////////////////////////////
-        // Manually construct the tree in CLRS, 2nd ed., page 282 //
-        ////////////////////////////////////////////////////////////
-        
-        /* Note: This tree has an invalid red-coloring. When the Node n4 calls
-         * its insertFixup() method, the violation should be fixed. This tree
-         * is constructed such that all three cases for insertFixup() occur.
-         * 
-         * Since this tree isn't constructed with the insert() method, this
-         * tree is also used to test general methods like predecessor(), since
-         * a faulty insert() method won't affect them.
-         */
-        p282Tree = new IntervalTree<Impl>();
-        n11 = p282Tree.new Node(new Impl(11));
-        n2  = p282Tree.new Node(new Impl(2));
-        n1  = p282Tree.new Node(new Impl(1));
-        n14 = p282Tree.new Node(new Impl(14));
-        n15 = p282Tree.new Node(new Impl(15));
-        n7  = p282Tree.new Node(new Impl(7));
-        n5  = p282Tree.new Node(new Impl(5));
-        n8  = p282Tree.new Node(new Impl(8));
-        n4  = p282Tree.new Node(new Impl(4));
-
-        fParent.set(n11, fNil.get(p282Tree));
-        fParent.set(n2, n11);
-        fParent.set(n1, n2);
-        fParent.set(n7, n2);
-        fParent.set(n5, n7);
-        fParent.set(n8, n7);
-        fParent.set(n4, n5);
-        fParent.set(n14, n11);
-        fParent.set(n15, n14);
-        
-        fLeft.set(n11, n2);
-        fLeft.set(n2, n1);
-        fLeft.set(n1, fNil.get(p282Tree));
-        fLeft.set(n7, n5);
-        fLeft.set(n5, n4);
-        fLeft.set(n8, fNil.get(p282Tree));
-        fLeft.set(n4, fNil.get(p282Tree));
-        fLeft.set(n14, fNil.get(p282Tree));
-        fLeft.set(n15, fNil.get(p282Tree));
-
-        fRight.set(n11, n14);
-        fRight.set(n2, n7);
-        fRight.set(n1, fNil.get(p282Tree));
-        fRight.set(n7, n8);
-        fRight.set(n5, fNil.get(p282Tree));
-        fRight.set(n8, fNil.get(p282Tree));
-        fRight.set(n4, fNil.get(p282Tree));
-        fRight.set(n14, n15);
-        fRight.set(n15, fNil.get(p282Tree));
-        
-        fIsBlack.set(n11, true);
-        fIsBlack.set(n2, false);
-        fIsBlack.set(n14, true);
-        fIsBlack.set(n1, true);
-        fIsBlack.set(n7, true);
-        fIsBlack.set(n15, false);
-        fIsBlack.set(n5, false);
-        fIsBlack.set(n8, false);
-        fIsBlack.set(n4, false);
-        
-        fMaxEnd.set(n11, 16);
-        fMaxEnd.set(n2, 9);
-        fMaxEnd.set(n14, 16);
-        fMaxEnd.set(n1, 2);
-        fMaxEnd.set(n7, 9);
-        fMaxEnd.set(n15, 16);
-        fMaxEnd.set(n5, 6);
-        fMaxEnd.set(n8, 9);
-        fMaxEnd.set(n4, 5);
-        
-        fRoot.set(p282Tree, n11);
-        
-        p282Successors = new HashMap<Impl, Impl>();
-        p282Successors.put(new Impl(1), new Impl(2));
-        p282Successors.put(new Impl(2), new Impl(4));
-        p282Successors.put(new Impl(4), new Impl(5));
-        p282Successors.put(new Impl(5), new Impl(7));
-        p282Successors.put(new Impl(7), new Impl(8));
-        p282Successors.put(new Impl(8), new Impl(11));
-        p282Successors.put(new Impl(11), new Impl(14));
-        p282Successors.put(new Impl(14), new Impl(15));
-        
-        p282Predecessors = new HashMap<Impl, Impl>();
-        p282Predecessors.put(new Impl(15), new Impl(14));
-        p282Predecessors.put(new Impl(14), new Impl(11));
-        p282Predecessors.put(new Impl(11), new Impl(8));
-        p282Predecessors.put(new Impl(8), new Impl(7));
-        p282Predecessors.put(new Impl(7), new Impl(5));
-        p282Predecessors.put(new Impl(5), new Impl(4));
-        p282Predecessors.put(new Impl(4), new Impl(2));
-        p282Predecessors.put(new Impl(2), new Impl(1));
-
-        ////////////////////////
-        // Make a random tree //
-        ////////////////////////
-        
         randomTree = new IntervalTree<Impl>();
-        randomValues = new HashSet<Impl>();
+        randomIntervals = new TreeSet<Impl>();
         Random rand = new Random();
-        for (int i = 0; i < numRandomElements; i++) {
+        for (int i = 0; i < numRandomIntervals; i++) {
             int r = 0;
             int s = 0;
             while (s <= r) {
-                r = rand.nextInt(valueCeiling);
-                s = rand.nextInt(valueCeiling);
+                r = rand.nextInt(randomUpperBound);
+                s = rand.nextInt(randomUpperBound);
             }
-            Impl interval = new Impl(r, s);
-            randomValues.add(interval);
-            randomTree.insert(interval);
+            
+            randomIntervals.add(new Impl(r, s));
+            randomTree.insert(new Impl(r, s));
         }
+        
+        gappedTree = new IntervalTree<Impl>();
+        gappedIntervals = new TreeSet<Impl>();
+        for (int i = 0; i < numGappedIntervals; i++) {
+            int r = 0;
+            int s = 0;
+            while (s <= r) {
+                r = rand.nextInt(gappedUpperBound);
+                s = rand.nextInt(gappedUpperBound);
+            }
+            
+            gappedIntervals.add(new Impl(r, s));
+            gappedTree.insert(new Impl(r, s));
+        }
+        
+        for (int i = 0; i < numGappedIntervals; i++) {
+            int r = 0;
+            int s = 0;
+            while (s <= r) {
+                r = rand.nextInt(gappedUpperBound) + gappedLowerBound;
+                s = rand.nextInt(gappedUpperBound) + gappedLowerBound;
+            }
+            
+            gappedIntervals.add(new Impl(r, s));
+            gappedTree.insert(new Impl(r, s));
+        }
+        
     }
-
+    
+    @Rule
+    public ExpectedException thrown = ExpectedException.none();
+    
+    //////////////////////
+    // Empty tree tests //
+    //////////////////////
+    
     @Test
     public void testEmptyTreeIsEmpty() {
         assertThat(emptyTree.isEmpty(), is(true));
     }
     
     @Test
-    public void testNotEmptyTreeIsNotEmpty() {
-        assertThat(p282Tree.isEmpty(), is(false));
-    }
-    
-    @Test
-    public void testSizeEmptyTree() {
+    public void testEmptyTreeSize() {
         assertThat(emptyTree.size(), is(0));
     }
     
     @Test
-    public void testSizeSingletonTree() {
-        assertThat(singletonTree.size(), is(1));
+    public void testEmptyTreeContains() {
+        assertThat(emptyTree.contains(new Impl(1, 5)), is(false));
     }
     
     @Test
-    public void testSingletonTreeColor() throws IllegalArgumentException,
-    IllegalAccessException {
-        assertThat(fIsBlack.get(fRoot.get(singletonTree)), is(true));
+    public void testEmptyTreeMinimum() {
+        assertThat(emptyTree.minimum().isPresent(), is(false));
     }
     
     @Test
-    public void testSizep282Tree() {
-        assertThat(p282Tree.size(), is(p282NumElems));
-    }
-
-    @Test
-    public void testIsRootTrue() {
-        assertThat(n11.isRoot(), is(true));
+    public void testEmptyTreeMaximum() {
+        assertThat(emptyTree.maximum().isPresent(), is(false));
     }
     
     @Test
-    public void testIsRootFalse() {
-        assertThat(n1.isRoot(), is(false));
+    public void testEmptyTreeSuccessor() {
+        assertThat(emptyTree.successor(new Impl(1, 2)).isPresent(), is(false));
     }
     
     @Test
-    public void testMaximum() {
-        assertThat(p282Tree.maximum()
-                           .orElseThrow(() -> new IllegalStateException("max not found")),
-                   is(p282Max));
+    public void testEmptyTreePredecessor() {
+        assertThat(emptyTree.predecessor(new Impl(1, 2)).isPresent(), is(false));
     }
     
     @Test
-    public void testMinimum() {
-        assertThat(p282Tree.minimum()
-                           .orElseThrow(() -> new IllegalStateException("min not found")),
-                   is(p282Min));
+    public void testEmptyTreeIteratorHasNext() {
+        assertThat(emptyTree.iterator().hasNext(), is(false));
     }
     
     @Test
-    public void testSuccessorOfMax() {
-        assertThat(p282Tree.search(p282Max)
-                           .orElseThrow(() -> new IllegalStateException("max not found"))
-                           .successor()
-                           .isPresent(), is(false));
+    public void testEmptyTreeIteratorNext() {
+        thrown.expect(NoSuchElementException.class);
+        thrown.expectMessage("Interval tree has no more elements.");
+        emptyTree.iterator().next();
     }
     
     @Test
-    public void testSuccessors() {
-        for (Entry<Impl, Impl> e : p282Successors.entrySet()) {
-            assertThat(p282Tree.search(e.getKey())
-                               .orElseThrow(() -> new IllegalStateException("value " + e.getKey() + " not found"))
-                               .successor()
-                               .orElseThrow(() -> new IllegalStateException("successor to " + e.getKey() + " not found"))
-                               .getValue(), is(e.getValue()));
-        }
+    public void testEmptyTreeOverlaps() {
+        assertThat(emptyTree.overlaps(new Impl(1, 10)), is(false));
     }
     
     @Test
-    public void testPredecessorOfMin() {
-        assertThat(p282Tree.search(p282Min)
-                           .orElseThrow(() -> new IllegalStateException("min not found"))
-                           .predecessor()
-                           .isPresent(), is(false));
+    public void testEmptyTreeOverlappersHasNext() {
+        assertThat(emptyTree.overlappers(new Impl(1, 3)).hasNext(), is(false));
     }
     
     @Test
-    public void testPredecessors() {
-        for (Entry<Impl, Impl> e : p282Predecessors.entrySet()) {
-            assertThat(p282Tree.search(e.getKey())
-                               .orElseThrow(() -> new IllegalStateException("value " + e.getKey() + " not found"))
-                               .predecessor()
-                               .orElseThrow(() -> new IllegalStateException("predecessor to " + e.getKey() + " not found"))
-                               .getValue(), is(e.getValue()));
-        }
+    public void testEmptyTreeOverlappersNext() {
+        thrown.expect(NoSuchElementException.class);
+        thrown.expectMessage("Interval tree has no more overlapping elements.");
+        emptyTree.overlappers(new Impl(1, 3)).next();
     }
     
     @Test
-    public void testEmptyTreeIsBST() throws IllegalAccessException,
+    public void testEmptyTreeNumOverlappers() {
+        assertThat(emptyTree.numOverlappers(new Impl(1, 3)), is(0));
+    }
+    
+    @Test
+    public void testEmptyTreeIsValidBST() throws IllegalAccessException,
     IllegalArgumentException, InvocationTargetException {
         assertThat(mIsBST.invoke(emptyTree), is(true));
     }
@@ -337,19 +204,342 @@ public class IntervalTreeTest {
     }
     
     @Test
-    public void testEmptyTreeHasValidRedColoring() throws IllegalAccessException,
-    IllegalArgumentException, InvocationTargetException {
+    public void testEmptyTreeHasValidRedColoring() throws
+    IllegalAccessException, IllegalArgumentException,
+    InvocationTargetException {
         assertThat(mHasValidRedColoring.invoke(emptyTree), is(true));
     }
     
     @Test
-    public void testEmptyTreeHasConsistentMaxEnds() throws IllegalAccessException,
-    IllegalArgumentException, InvocationTargetException {
+    public void testEmptyTreeConsistentMaxEnds() throws
+    IllegalAccessException, IllegalArgumentException,
+    InvocationTargetException {
+        assertThat(mHasConsistentMaxEnds.invoke(emptyTree), is(true));
+    }
+
+    @Test
+    public void testEmptyTreeDelete() {
+        assertThat(emptyTree.delete(new Impl(1, 2)), is(false));
+    }
+    
+    @Test
+    public void testEmptyTreeSizeAfterDelete() {
+        emptyTree.delete(new Impl(1, 2));
+        assertThat(emptyTree.size(), is(0));
+    }
+    
+    @Test
+    public void testEmptyTreeIsEmptyAfterDelete() {
+        emptyTree.delete(new Impl(1, 2));
+        assertThat(emptyTree.isEmpty(), is(true));
+    }
+    
+    @Test
+    public void testEmptyTreeDeleteMin() {
+        assertThat(emptyTree.deleteMin(), is(false));
+    }
+    
+    @Test
+    public void testEmptyTreeSizeAfterDeleteMin() {
+        emptyTree.deleteMin();
+        assertThat(emptyTree.size(), is(0));
+    }
+    
+    @Test
+    public void testEmptyTreeIsEmptyAfterDeleteMin() {
+        emptyTree.deleteMin();
+        assertThat(emptyTree.isEmpty(), is(true));
+    }
+    
+    @Test
+    public void testEmptyTreeDeleteMax() {
+        assertThat(emptyTree.deleteMax(), is(false));
+    }
+    
+    @Test
+    public void testEmptyTreeSizeAfterDeleteMax() {
+        emptyTree.deleteMax();
+        assertThat(emptyTree.size(), is(0));
+    }
+    
+    @Test
+    public void testEmptyTreeIsEmptyAfterDeleteMax() {
+        emptyTree.deleteMax();
+        assertThat(emptyTree.isEmpty(), is(true));
+    }
+    
+    @Test
+    public void testEmptyTreeDeleteOverlappers() {
+        emptyTree.deleteOverlappers(new Impl(1, 2));
+    }
+    
+    @Test
+    public void testEmptyTreeSizeAfterDeleteOverlappers() {
+        emptyTree.deleteOverlappers(new Impl(1, 2));
+        assertThat(emptyTree.size(), is(0));
+    }
+    
+    @Test
+    public void testEmptyTreeIsEmptyAfterDeleteOverlappers() {
+        emptyTree.deleteOverlappers(new Impl(1, 2));
+        assertThat(emptyTree.isEmpty(), is(true));
+    }
+    
+    @Test
+    public void testEmptyTreeIsValidBSTAfterDeletion() throws
+    IllegalAccessException, IllegalArgumentException, InvocationTargetException {
+        emptyTree.delete(new Impl(1, 3));
+        assertThat(mIsBST.invoke(emptyTree), is(true));
+    }
+    
+    @Test
+    public void testEmptyTreeIsBalancedAfterDeletion() throws
+    IllegalAccessException, IllegalArgumentException, InvocationTargetException {
+        emptyTree.delete(new Impl(1, 3));
+        assertThat(mIsBalanced.invoke(emptyTree), is(true));
+    }
+    
+    @Test
+    public void testEmptyTreeHasValidRedColoringAfterDeletion() throws
+    IllegalAccessException, IllegalArgumentException,
+    InvocationTargetException {
+        emptyTree.delete(new Impl(1, 3));
+        assertThat(mHasValidRedColoring.invoke(emptyTree), is(true));
+    }
+    
+    @Test
+    public void testEmptyTreeConsistentMaxEndsAfterDeletion() throws
+    IllegalAccessException, IllegalArgumentException,
+    InvocationTargetException {
+        emptyTree.delete(new Impl(1, 3));
         assertThat(mHasConsistentMaxEnds.invoke(emptyTree), is(true));
     }
     
     @Test
-    public void testSingletonTreeIsBST() throws IllegalAccessException,
+    public void testEmptyTreeInsertion() {
+        assertThat(emptyTree.insert(new Impl(1, 3)), is(true));
+    }
+    
+    @Test
+    public void testEmptyTreeSizeAfterInsertion() {
+        emptyTree.insert(new Impl(1, 2));
+        assertThat(emptyTree.size(), is(1));
+    }
+    
+    @Test
+    public void testEmptyTreeIsEmptyAfterInsertion() {
+        emptyTree.insert(new Impl(1, 2));
+        assertThat(emptyTree.isEmpty(), is(false));
+    }
+    
+    @Test
+    public void testEmptyTreeIsValidBSTAfterInsertion() throws
+    IllegalAccessException, IllegalArgumentException, InvocationTargetException {
+        emptyTree.insert(new Impl(1, 3));
+        assertThat(mIsBST.invoke(emptyTree), is(true));
+    }
+    
+    @Test
+    public void testEmptyTreeIsBalancedAfterInsertion() throws
+    IllegalAccessException, IllegalArgumentException, InvocationTargetException {
+        emptyTree.insert(new Impl(1, 3));
+        assertThat(mIsBalanced.invoke(emptyTree), is(true));
+    }
+    
+    @Test
+    public void testEmptyTreeHasValidRedColoringAfterInsertion() throws
+    IllegalAccessException, IllegalArgumentException,
+    InvocationTargetException {
+        emptyTree.insert(new Impl(1, 3));
+        assertThat(mHasValidRedColoring.invoke(emptyTree), is(true));
+    }
+    
+    @Test
+    public void testEmptyTreeHasConsistentMaxEndsAfterInsertion() throws
+    IllegalAccessException, IllegalArgumentException,
+    InvocationTargetException {
+        emptyTree.insert(new Impl(1, 3));
+        assertThat(mHasConsistentMaxEnds.invoke(emptyTree), is(true));
+    }
+    
+    @Test
+    public void testEmptyTreeIsValidBSTAfterRepeatedInsertions() throws
+    IllegalAccessException, IllegalArgumentException, InvocationTargetException {
+        Random rand = new Random();
+        for (int i = 0; i < numRandomIntervals; i++) {
+            int r = 0;
+            int s = 0;
+            while (s <= r) {
+                r = rand.nextInt(randomUpperBound);
+                s = rand.nextInt(randomUpperBound);
+            }
+            
+            emptyTree.insert(new Impl(r, s));
+            assertThat(mIsBST.invoke(emptyTree), is(true));
+        }
+    }
+    
+    @Test
+    public void testEmptyTreeIsBalancedAfterRepeatedInsertions() throws
+    IllegalAccessException, IllegalArgumentException, InvocationTargetException {
+        Random rand = new Random();
+        for (int i = 0; i < numRandomIntervals; i++) {
+            int r = 0;
+            int s = 0;
+            while (s <= r) {
+                r = rand.nextInt(randomUpperBound);
+                s = rand.nextInt(randomUpperBound);
+            }
+            
+            emptyTree.insert(new Impl(r, s));
+            assertThat(mIsBalanced.invoke(emptyTree), is(true));
+        }
+    }
+    
+    @Test
+    public void testEmptyTreeHasValidRedColoringAfterRepeatedInsertions() throws
+    IllegalAccessException, IllegalArgumentException, InvocationTargetException {
+        Random rand = new Random();
+        for (int i = 0; i < numRandomIntervals; i++) {
+            int r = 0;
+            int s = 0;
+            while (s <= r) {
+                r = rand.nextInt(randomUpperBound);
+                s = rand.nextInt(randomUpperBound);
+            }
+            
+            emptyTree.insert(new Impl(r, s));
+            assertThat(mHasValidRedColoring.invoke(emptyTree), is(true));
+        }
+    }
+    
+    @Test
+    public void testEmptyTreeHasConsistentMaxEndsAfterRepeatedInsertions() throws
+    IllegalAccessException, IllegalArgumentException, InvocationTargetException {
+        Random rand = new Random();
+        for (int i = 0; i < numRandomIntervals; i++) {
+            int r = 0;
+            int s = 0;
+            while (s <= r) {
+                r = rand.nextInt(randomUpperBound);
+                s = rand.nextInt(randomUpperBound);
+            }
+            
+            emptyTree.insert(new Impl(r, s));
+            assertThat(mHasConsistentMaxEnds.invoke(emptyTree), is(true));
+        }
+    }
+    
+    //////////////////////////
+    // Singleton tree tests //
+    //////////////////////////
+    
+    @Test
+    public void testSingletonTreeIsEmpty() {
+        assertThat(singletonTree.isEmpty(), is(false));
+    }
+    
+    @Test
+    public void testSingletonTreeSize() {
+        assertThat(singletonTree.size(), is(1));
+    }
+    
+    @Test
+    public void testSingletonTreeContainsPositive() {
+        assertThat(singletonTree.contains(copyOfSingletonValue), is(true));
+    }
+    
+    @Test
+    public void testSingletonTreeContainsNegative() {
+        assertThat(singletonTree.contains(new Impl(1, 9)), is(false));
+    }
+    
+    @Test
+    public void testSingletonTreeMinimum() {
+        assertThat(singletonTree.minimum()
+                                .orElseThrow(() -> new IllegalStateException()),
+                is(copyOfSingletonValue));
+    }
+    
+    @Test
+    public void testSingletonTreeMaximum() {
+        assertThat(singletonTree.maximum()
+                                .orElseThrow(() -> new IllegalStateException()),
+                is(copyOfSingletonValue));
+    }
+    
+    @Test
+    public void testSingletonTreeSuccessor() {
+        assertThat(singletonTree.successor(copyOfSingletonValue).isPresent(),
+                is(false));
+    }
+    
+    @Test
+    public void testSingetonTreePredecessor() {
+        assertThat(singletonTree.predecessor(copyOfSingletonValue).isPresent(),
+                is(false));
+    }
+    
+    @Test
+    public void testSingletonTreeIteratorHasNext() {
+        assertThat(singletonTree.iterator().hasNext(), is(true));
+    }
+    
+    @Test
+    public void testSingletonTreeIteratorNext() {
+        assertThat(singletonTree.iterator().next(), is(copyOfSingletonValue));
+    }
+    
+    @Test
+    public void testSingletonTreeIteratorNextTwice() {
+        thrown.expect(NoSuchElementException.class);
+        thrown.expectMessage("Interval tree has no more elements.");
+        Iterator<Impl> i = singletonTree.iterator();
+        i.next();
+        i.next();
+    }
+    
+    @Test
+    public void testSingletonTreeOverlapsPositive() {
+        assertThat(singletonTree.overlaps(copyOfSingletonValue), is(true));
+    }
+    
+    @Test
+    public void testSingletonTreeOverlapsNegative() {
+        assertThat(singletonTree.overlaps(new Impl(20, 22)), is(false));
+    }
+    
+    @Test
+    public void testSingletonTreeOverlapsAdjacent() {
+        assertThat(singletonTree.overlaps(new Impl(10, 20)), is(false));
+    }
+    
+    @Test
+    public void testSingletonTreeOverlappersHasNext() {
+        assertThat(singletonTree.overlappers(new Impl(1, 3)).hasNext(), is(true));
+    }
+
+    @Test
+    public void testSingletonTreeOverlappersNext() {
+        assertThat(singletonTree.overlappers(new Impl(1, 3)).next(), is(copyOfSingletonValue));
+    }
+    
+    @Test
+    public void testSingletonTreeOverlappersNextTwice() {
+        thrown.expect(NoSuchElementException.class);
+        thrown.expectMessage("Interval tree has no more overlapping elements.");
+        Iterator<Impl> i = singletonTree.overlappers(new Impl(1, 3));
+        i.next();
+        i.next();
+    }
+    
+    @Test
+    public void testSingletonTreeNumOverlappers() {
+        assertThat(singletonTree.numOverlappers(new Impl(1, 3)), is(1));
+    }
+    
+    @Test
+    public void testSingletonTreeIsValidBST() throws IllegalAccessException,
     IllegalArgumentException, InvocationTargetException {
         assertThat(mIsBST.invoke(singletonTree), is(true));
     }
@@ -361,337 +551,482 @@ public class IntervalTreeTest {
     }
     
     @Test
-    public void testSingletonTreeHasValidRedColoring() throws IllegalAccessException,
-    IllegalArgumentException, InvocationTargetException {
+    public void testSingletonTreeHasValidRedColoring() throws
+    IllegalAccessException, IllegalArgumentException,
+    InvocationTargetException {
         assertThat(mHasValidRedColoring.invoke(singletonTree), is(true));
     }
     
     @Test
-    public void testSingletonTreeHasConsistentMaxEnds() throws IllegalAccessException,
-    IllegalArgumentException, InvocationTargetException {
+    public void testSingletonTreeConsistentMaxEnds() throws
+    IllegalAccessException, IllegalArgumentException,
+    InvocationTargetException {
         assertThat(mHasConsistentMaxEnds.invoke(singletonTree), is(true));
     }
-    
-    @Test
-    public void testSingletonTreeIsBSTAfterRedundantInsertion() throws
-    IllegalAccessException, IllegalArgumentException, InvocationTargetException {
-        singletonTree.insert(singletonValue);
-        assertThat(mIsBST.invoke(singletonTree), is(true));
-    }
-    
-    @Test
-    public void testSingletonTreeIsBalancedAfterRedundantInsertion() throws
-    IllegalAccessException, IllegalArgumentException, InvocationTargetException {
-        singletonTree.insert(singletonValue);
-        assertThat(mIsBalanced.invoke(singletonTree), is(true));
-    }
-    
-    @Test
-    public void testSingletonTreeHasValidRedColoringAfterRedundantInsertion() throws
-    IllegalAccessException, IllegalArgumentException, InvocationTargetException {
-        singletonTree.insert(singletonValue);
-        assertThat(mHasValidRedColoring.invoke(singletonTree), is(true));
-    }
-    
-    @Test
-    public void testSingletonTreeHasConsistentMaxEndsAfterRedundantInsertion() throws
-    IllegalAccessException, IllegalArgumentException, InvocationTargetException {
-        singletonTree.insert(singletonValue);
-        assertThat(mHasConsistentMaxEnds.invoke(singletonTree), is(true));
-    }
-    
-    @Test
-    public void testp282TreeIsBST() throws IllegalAccessException,
-    IllegalArgumentException, InvocationTargetException {
-        assertThat(mIsBST.invoke(p282Tree), is(true));
-    }
-    
-    @Test
-    public void testp282TreeIsBalanced() throws IllegalAccessException,
-    IllegalArgumentException, InvocationTargetException {
-        assertThat(mIsBalanced.invoke(p282Tree), is(true));
-    }
-    
-    @Test
-    public void testp282TreeHasInvalidRedColoring() throws IllegalAccessException,
-    IllegalArgumentException, InvocationTargetException {
-        assertThat(mHasValidRedColoring.invoke(p282Tree), is(false));
-    }
-    
-    @Test
-    public void testp282TreeHasConsistentMaxEnds() throws IllegalAccessException,
-    IllegalArgumentException, InvocationTargetException {
-        assertThat(mHasConsistentMaxEnds.invoke(p282Tree), is(true));
-    }
-    
 
     @Test
-    public void testRandomTreeIsBST() throws IllegalAccessException,
-    IllegalArgumentException, InvocationTargetException {
-        assertThat(mIsBST.invoke(randomTree), is(true));
+    public void testSingletonTreeDeletePositive() {
+        assertThat(singletonTree.delete(copyOfSingletonValue), is(true));
     }
     
     @Test
-    public void testRandomTreeIsBalanced() throws IllegalAccessException,
-    IllegalArgumentException, InvocationTargetException {
-        assertThat(mIsBalanced.invoke(randomTree), is(true));
+    public void testSingletonTreeDeleteNegative() {
+        assertThat(singletonTree.delete(new Impl(1, 5)), is(false));
     }
     
     @Test
-    public void testRandomTreeHasValidRedColoring() throws IllegalAccessException,
-    IllegalArgumentException, InvocationTargetException {
-        assertThat(mHasValidRedColoring.invoke(randomTree), is(true));
+    public void testSingletonTreeSizeAfterSuccessfulDeletion() {
+        singletonTree.delete(copyOfSingletonValue);
+        assertThat(singletonTree.size(), is(0));
     }
     
     @Test
-    public void testRandomTreeHasConsistentMaxEnds() throws IllegalAccessException,
-    IllegalArgumentException, InvocationTargetException {
-        assertThat(mHasConsistentMaxEnds.invoke(randomTree), is(true));
-    }
-    
-    @Test
-    public void testSizeAfterInsertionIntoEmptyTree() {
-        emptyTree.insert(singletonValue);
-        assertThat(emptyTree.size(), is(1));
-    }
-    
-    @Test
-    public void testSizeAfterInsertionSameValue() {
-        singletonTree.insert(singletonValue);
+    public void testSingletonTreeSizeAfterUnsuccessfulDeletion() {
+        singletonTree.delete(new Impl(1, 9));
         assertThat(singletonTree.size(), is(1));
     }
-
+    
     @Test
-    public void testSizeAfterInsertionDifferentStartSameEnd() {
-        singletonTree.insert(new Impl(singletonValue.start + 1, singletonValue.end));
-        assertThat(singletonTree.size(), is(2));
+    public void testSingletonTreeIsEmptyAfterSuccessfulDeletion() {
+        singletonTree.delete(copyOfSingletonValue);
+        assertThat(singletonTree.isEmpty(), is(true));
     }
     
     @Test
-    public void testSizeAfterInsertionSameStartDifferentEnd() {
-        singletonTree.insert(new Impl(singletonValue.start, singletonValue.end + 1));
-        assertThat(singletonTree.size(), is(2));
+    public void testSingletonTreeIsEmptyAfterUnsuccessfulDeletion() {
+        singletonTree.delete(new Impl(1, 9));
+        assertThat(singletonTree.isEmpty(), is(false));
     }
     
     @Test
-    public void testIsEmptyAfterSingletonDeletion() {
-        singletonTree.insert(singletonValue);
+    public void testSingletonTreeDeleteMin() {
+        assertThat(singletonTree.deleteMin(), is(true));
+    }
+    
+    @Test
+    public void testSingletonTreeSizeAfterDeleteMin() {
+        singletonTree.deleteMin();
+        assertThat(singletonTree.size(), is(0));
+    }
+    
+    @Test
+    public void testSingletonTreeIsEmptyAfterDeleteMin() {
+        singletonTree.deleteMin();
+        assertThat(singletonTree.isEmpty(), is(true));
+    }
+    
+    @Test
+    public void testSingletonTreeDeleteMax() {
+        assertThat(singletonTree.deleteMax(), is(true));
+    }
+    
+    @Test
+    public void testSingletonTreeSizeAfterDeleteMax() {
+        singletonTree.deleteMax();
+        assertThat(singletonTree.size(), is(0));
+    }
+    
+    @Test
+    public void testSingletonTreeIsEmptyAfterDeleteMax() {
         singletonTree.deleteMax();
         assertThat(singletonTree.isEmpty(), is(true));
     }
     
     @Test
-    public void testSizeAfterEveryPossibleDeletion() {
-        Set<Impl> s = new HashSet<Impl>(randomValues); // Make copy; otherwise ConcurrentModException
-        Iterator<Impl> iter = randomValues.iterator();
-        while (iter.hasNext()) {
-            Impl i = iter.next();
-            randomTree.search(i).ifPresent(k -> k.delete());
-            s.remove(i);
-            assertThat(randomTree.size(), is(s.size()));
-        }
+    public void testSingletonTreeDeleteOverlappers() {
+        singletonTree.deleteOverlappers(new Impl(1, 5));
     }
     
     @Test
-    public void testRemainsBstAfterEveryPossibleDeletion()
-    throws IllegalAccessException, IllegalArgumentException,
+    public void testSingletonTreeSizeAfterDeleteOverlappersPositive() {
+        singletonTree.deleteOverlappers(new Impl(1, 5));
+        assertThat(singletonTree.size(), is(0));
+    }
+    
+    @Test
+    public void testSingletonTreeSizeAfterDeleteOverlappersNegative() {
+        singletonTree.deleteOverlappers(new Impl(20, 25));
+        assertThat(singletonTree.size(), is(1));
+    }
+    
+    @Test
+    public void testSingletonTreeIsEmptyAfterDeleteOverlappers() {
+        singletonTree.deleteOverlappers(new Impl(1, 5));
+        assertThat(singletonTree.isEmpty(), is(true));
+    }
+    
+    @Test
+    public void testSingletonTreeIsNotEmptyAfterDeleteOverlappers() {
+        singletonTree.deleteOverlappers(new Impl(20, 25));
+        assertThat(singletonTree.isEmpty(), is(false));
+    }
+    
+    @Test
+    public void testSingletonTreeIsValidBSTAfterDeletion() throws
+    IllegalAccessException, IllegalArgumentException, InvocationTargetException {
+        singletonTree.delete(copyOfSingletonValue);
+        assertThat(mIsBST.invoke(singletonTree), is(true));
+    }
+    
+    @Test
+    public void testSingletonTreeIsBalancedAfterDeletion() throws
+    IllegalAccessException, IllegalArgumentException, InvocationTargetException {
+        singletonTree.delete(copyOfSingletonValue);
+        assertThat(mIsBalanced.invoke(singletonTree), is(true));
+    }
+    
+    @Test
+    public void testSingletonTreeHasValidRedColoringAfterDeletion() throws
+    IllegalAccessException, IllegalArgumentException,
     InvocationTargetException {
-        Iterator<Impl> iter = randomValues.iterator();
+        singletonTree.delete(copyOfSingletonValue);
+        assertThat(mHasValidRedColoring.invoke(singletonTree), is(true));
+    }
+    
+    @Test
+    public void testSingletonTreeConsistentMaxEndsAfterDeletion() throws
+    IllegalAccessException, IllegalArgumentException,
+    InvocationTargetException {
+        singletonTree.delete(copyOfSingletonValue);
+        assertThat(mHasConsistentMaxEnds.invoke(singletonTree), is(true));
+    }
+    
+    @Test
+    public void testSingletonTreeInsertion() {
+        assertThat(singletonTree.insert(new Impl(1, 11)), is(true));
+    }
+    
+    @Test
+    public void testSingletonTreeRedundantInsertion() {
+        assertThat(singletonTree.insert(copyOfSingletonValue), is(false));
+    }
+    
+    @Test
+    public void testSingletonTreeSizeAfterInsertion() {
+        singletonTree.insert(new Impl(1, 2));
+        assertThat(singletonTree.size(), is(2));
+    }
+    
+    @Test
+    public void testSingletonTreeSizeAfterRedundantInsertion() {
+        singletonTree.insert(copyOfSingletonValue);
+        assertThat(singletonTree.size(), is(1));
+    }
+    
+    @Test
+    public void testSingletonTreeIsNotEmptyAfterInsertion() {
+        singletonTree.insert(new Impl(1, 2));
+        assertThat(singletonTree.isEmpty(), is(false));
+    }
+    
+    @Test
+    public void testSingletonTreeIsValidBSTAfterInsertion() throws
+    IllegalAccessException, IllegalArgumentException, InvocationTargetException {
+        singletonTree.insert(new Impl(1, 3));
+        assertThat(mIsBST.invoke(singletonTree), is(true));
+    }
+    
+    @Test
+    public void testSingletonTreeIsValidBSTAfterRedundantInsertion() throws
+    IllegalAccessException, IllegalArgumentException, InvocationTargetException {
+        singletonTree.insert(copyOfSingletonValue);
+        assertThat(mIsBST.invoke(singletonTree), is(true));
+    }
+    
+    @Test
+    public void testSingletonTreeIsBalancedAfterInsertion() throws
+    IllegalAccessException, IllegalArgumentException, InvocationTargetException {
+        singletonTree.insert(new Impl(1, 3));
+        assertThat(mIsBalanced.invoke(singletonTree), is(true));
+    }
+    
+    @Test
+    public void testSingletonTreeIsBalancedAfterRedundantInsertion() throws
+    IllegalAccessException, IllegalArgumentException, InvocationTargetException {
+        singletonTree.insert(copyOfSingletonValue);
+        assertThat(mIsBalanced.invoke(singletonTree), is(true));
+    }
+    
+    @Test
+    public void testSingletonTreeHasValidRedColoringAfterInsertion() throws
+    IllegalAccessException, IllegalArgumentException,
+    InvocationTargetException {
+        singletonTree.insert(new Impl(1, 3));
+        assertThat(mHasValidRedColoring.invoke(singletonTree), is(true));
+    }
+    
+    @Test
+    public void testSingletonTreeHasValidRedColoringAfterRedundantInsertion() throws
+    IllegalAccessException, IllegalArgumentException,
+    InvocationTargetException {
+        singletonTree.insert(copyOfSingletonValue);
+        assertThat(mHasValidRedColoring.invoke(singletonTree), is(true));
+    }
+    
+    @Test
+    public void testSingletonTreeConsistentMaxEndsAfterInsertion() throws
+    IllegalAccessException, IllegalArgumentException,
+    InvocationTargetException {
+        singletonTree.insert(new Impl(1, 3));
+        assertThat(mHasConsistentMaxEnds.invoke(singletonTree), is(true));
+    }
+    
+    @Test
+    public void testSingletonTreeConsistentMaxEndsAfterRedundantInsertion() throws
+    IllegalAccessException, IllegalArgumentException,
+    InvocationTargetException {
+        singletonTree.insert(copyOfSingletonValue);
+        assertThat(mHasConsistentMaxEnds.invoke(singletonTree), is(true));
+    }
+    
+    ///////////////////////
+    // Random tree tests //
+    ///////////////////////
+    
+    @Test
+    public void testRandomTreeIsNotEmpty() {
+        assertThat(randomTree.isEmpty(), is(false));
+    }
+    
+    @Test
+    public void testRandomTreeSize() {
+        assertThat(randomTree.size(), is(randomIntervals.size()));
+    }
+    
+    @Test
+    public void testRandomTreeContainsPositive() {
+        randomTree.insert(new Impl(1000, 2000));
+        assertThat(randomTree.contains(new Impl(1000, 2000)), is(true));
+    }
+    
+    @Test
+    public void testRandomTreeMinimum() {
+        Impl i = randomIntervals.iterator().next();
+        assertThat(randomTree.minimum()
+                             .orElseThrow(() -> new IllegalStateException()),
+                is(i));
+    }
+    
+    @Test
+    public void testRandomTreeMaximum() {
+        Iterator<Impl> iter = randomIntervals.iterator();
+        Impl i = null;
         while (iter.hasNext()) {
-            Impl i = iter.next();
-            randomTree.search(i).ifPresent(k -> k.delete());
+            i = iter.next();
+        }
+        assertThat(randomTree.maximum()
+                             .orElseThrow(() -> new IllegalStateException()),
+                is(i));
+    }
+    
+    @Test
+    public void testRandomTreePredecessorOfMinimum() {
+        assertThat(randomTree.minimum()
+                             .flatMap(t -> randomTree.predecessor(t))
+                             .isPresent(), is(false));
+    }
+    
+    @Test
+    public void testRandomTreeSuccessorOfMinimum() {
+        Impl successor = randomTree.minimum()
+                                   .flatMap(t -> randomTree.successor(t))
+                                   .orElseThrow(() -> new IllegalStateException("Can't find successor"));
+        Iterator<Impl> iter = randomIntervals.iterator();
+        iter.next();
+        assertThat(iter.next(), is(successor));
+    }
+    
+    @Test
+    public void testRandomTreeSuccessorOfMaximum() {
+        assertThat(randomTree.maximum()
+                             .flatMap(t -> randomTree.successor(t))
+                             .isPresent(), is(false));
+    }
+    
+    @Test
+    public void testRandomTreePredecessorOfMaximum() {
+        Impl predecessor = randomTree.maximum()
+                                     .flatMap(t -> randomTree.predecessor(t))
+                                     .orElseThrow(() -> new IllegalStateException("Can't find predecessor"));
+        Iterator<Impl> iter = randomIntervals.iterator();
+        Impl prev = iter.next();
+        Impl curr = iter.next();
+        while (iter.hasNext()) {
+            prev = curr;
+            curr = iter.next();
+        }
+        assertThat(prev, is(predecessor));
+    }
+    
+    @Test
+    public void testRandomTreeIteratorNumberOfElements() {
+
+        long count = StreamSupport.stream(randomTree.spliterator(), false)
+                .count();
+        
+        assertThat((long) randomIntervals.size(), is(count));
+    }
+
+    @Test
+    public void testRandomTreeOverlapsPositive() {
+        Impl cmp = new Impl(1000, 2000); // Not guaranteed to overlap,
+                                         // but unlikely not to
+        
+        assertThat(randomTree.overlaps(cmp), is(true));
+    }
+    
+    @Test
+    public void testRandomTreeOverlapsNegative1() {
+        Impl cmp = new Impl(randomUpperBound, randomUpperBound + 1000);
+        assertThat(randomTree.overlaps(cmp), is(false));
+    }
+    
+    @Test
+    public void testRandomTreeOverlapsNegative2() {
+        Impl cmp = new Impl(-1000, 0);
+        assertThat(randomTree.overlaps(cmp), is(false));
+    }
+    
+    @Test
+    public void testRandomTreeMinOverlapperPositive() {
+        Impl cmp = new Impl(1000, 2000);
+        
+        Impl setMin = randomIntervals.stream()
+                .filter(n -> n.overlaps(cmp))
+                .findFirst()
+                .orElseThrow(() -> new IllegalStateException("Can't find any overlapper."));
+        
+        Impl treeMin = randomTree.minimumOverlapper(cmp)
+                .orElseThrow(() -> new IllegalStateException("Can't find any overlapper."));
+
+        assertThat(treeMin, is(setMin));
+    }
+    
+    @Test
+    public void testRandomTreeMinOverlapperNegative() {
+        Impl cmp = new Impl(-1000, 0);
+        assertThat(randomTree.minimumOverlapper(cmp).isPresent(), is(false));
+    }
+
+    @Test
+    public void testRandomTreeNumOverlappers() {
+        Impl i = new Impl(1000, 2000);
+
+        long count = StreamSupport.stream(randomTree.spliterator(), false)
+                .filter(n -> n.overlaps(i))
+                .count();
+        
+        assertThat((long) randomTree.numOverlappers(i), is(count));
+    }
+    
+    @Test
+    public void testRandomTreeSizeAfterDeleteOverlappers() {
+        Impl i = new Impl(1000, 2000);
+        
+        long initSize = randomTree.size();
+        long count = StreamSupport.stream(randomTree.spliterator(), false)
+                .filter(n -> n.overlaps(i))
+                .count();
+        
+        randomTree.deleteOverlappers(i);
+        assertThat((long) randomTree.size(), is(initSize - count));
+    }
+    
+    @Test
+    public void testRandomTreeNoOverlappersAfterDeleteOverlappers() {
+        Impl i = new Impl(1000, 2000);
+        assertThat(randomTree.overlaps(i), is(true));
+        
+        randomTree.deleteOverlappers(i);
+        assertThat(randomTree.overlaps(i), is(false));
+
+        for (Impl j : randomTree) {
+            assertThat(j.overlaps(i), is(false));
+        }
+    }
+
+    @Test
+    public void testRandomTreeSizeAfterRepeatedDeletions() throws
+    IllegalAccessException, IllegalArgumentException, InvocationTargetException {
+        List<Impl> randomIntervalList = new ArrayList<>(randomIntervals);
+        Collections.shuffle(randomIntervalList);
+        int count = randomIntervalList.size();
+        
+        for (Impl i : randomIntervalList) {
+            randomTree.delete(i);
+            count--;
+            assertThat(randomTree.size(), is(count));
+        }
+        
+        assertThat(randomTree.isEmpty(), is(true));
+    }
+    
+    @Test
+    public void testRandomTreeIsValidBSTAfterRepeatedDeletions() throws
+    IllegalAccessException, IllegalArgumentException, InvocationTargetException {
+        List<Impl> randomIntervalList = new ArrayList<>(randomIntervals);
+        Collections.shuffle(randomIntervalList);
+        
+        for (Impl i : randomIntervalList) {
+            randomTree.delete(i);
             assertThat(mIsBST.invoke(randomTree), is(true));
         }
     }
     
     @Test
-    public void testRemainsBalancedAfterEveryPossibleDeletion()
-    throws IllegalAccessException, IllegalArgumentException,
-    InvocationTargetException {
-        Iterator<Impl> iter = randomValues.iterator();
-        while (iter.hasNext()) {
-            Impl i = iter.next();
-            randomTree.search(i).ifPresent(k -> k.delete());
+    public void testRandomTreeIsBalancedAfterRepeatedDeletions() throws
+    IllegalAccessException, IllegalArgumentException, InvocationTargetException {
+        List<Impl> randomIntervalList = new ArrayList<>(randomIntervals);
+        Collections.shuffle(randomIntervalList);
+        
+        for (Impl i : randomIntervalList) {
+            randomTree.delete(i);
             assertThat(mIsBalanced.invoke(randomTree), is(true));
         }
     }
     
     @Test
-    public void testRetainsValidRedColoringAfterEveryPossibleDeletion()
-    throws IllegalAccessException, IllegalArgumentException,
+    public void testRandomTreeHasValidRedColoringAfterRepeatedDeletions() throws
+    IllegalAccessException, IllegalArgumentException,
     InvocationTargetException {
-        Iterator<Impl> iter = randomValues.iterator();
-        while (iter.hasNext()) {
-            Impl i = iter.next();
-            randomTree.search(i).ifPresent(k -> k.delete());
+        List<Impl> randomIntervalList = new ArrayList<>(randomIntervals);
+        Collections.shuffle(randomIntervalList);
+        
+        for (Impl i : randomIntervalList) {
+            randomTree.delete(i);
             assertThat(mHasValidRedColoring.invoke(randomTree), is(true));
         }
     }
     
     @Test
-    public void testRetainsConsistentMaxEndsAfterEveryPossibleDeletion()
-    throws IllegalAccessException, IllegalArgumentException,
+    public void testRandomTreeConsistentMaxEndsAfterRepeatedDeletions() throws
+    IllegalAccessException, IllegalArgumentException,
     InvocationTargetException {
-        Iterator<Impl> iter = randomValues.iterator();
-        while (iter.hasNext()) {
-            Impl i = iter.next();
-            randomTree.search(i).ifPresent(k -> k.delete());
+        List<Impl> randomIntervalList = new ArrayList<>(randomIntervals);
+        Collections.shuffle(randomIntervalList);
+        
+        for (Impl i : randomIntervalList) {
+            randomTree.delete(i);
             assertThat(mHasConsistentMaxEnds.invoke(randomTree), is(true));
         }
     }
     
-    @Test
-    public void testSizeAfterRepeatedInsertions() {
-        int size = 0;
-        Random rand = new Random();
-        for (int i = 0; i < numRandomElements; i++) {
-            int r = 0;
-            int s = 0;
-            while (s <= r) {
-                r = rand.nextInt(valueCeiling);
-                s = rand.nextInt(valueCeiling);
-            }
+    ///////////////////////
+    // Gapped tree tests //
+    ///////////////////////
 
-            Impl interval = new Impl(r, s);
-            if (emptyTree.insert(interval)) {
-                 size++;   
-            }
-            assertThat(emptyTree.size(), is(size));
-        }
+    @Test
+    public void testGappedTreeOverlapsPositive() {
+        assertThat(gappedTree.overlaps(new Impl(0, gappedUpperBound)), is(true));
+        assertThat(gappedTree.overlaps(
+            new Impl(gappedLowerBound, gappedUpperBound + gappedLowerBound)), is(true));
+        assertThat(gappedTree.overlaps(
+            new Impl(0, gappedUpperBound + gappedLowerBound)), is(true));
     }
     
     @Test
-    public void testRemainsBstAfterRepeatedInsertions()
-    throws IllegalAccessException, IllegalArgumentException,
-    InvocationTargetException {
-        Random rand = new Random();
-        for (int i = 0; i < numRandomElements; i++) {
-            int r = 0;
-            int s = 0;
-            while (s <= r) {
-                r = rand.nextInt(valueCeiling);
-                s = rand.nextInt(valueCeiling);
-            }
-
-            Impl interval = new Impl(r, s);
-            emptyTree.insert(interval);
-            assertThat(mIsBST.invoke(emptyTree), is(true));
-        }
-    }
-    
-    @Test
-    public void testRetainsValidRedColoringAfterRepeatedInsertions()
-    throws IllegalAccessException, IllegalArgumentException,
-    InvocationTargetException {
-        Random rand = new Random();
-        for (int i = 0; i < numRandomElements; i++) {
-            int r = 0;
-            int s = 0;
-            while (s <= r) {
-                r = rand.nextInt(valueCeiling);
-                s = rand.nextInt(valueCeiling);
-            }
-
-            Impl interval = new Impl(r, s);
-            emptyTree.insert(interval);
-            assertThat(mHasValidRedColoring.invoke(emptyTree), is(true));
-        }
-    }
-    
-    @Test
-    public void testRetainsConsistentMaxEndsAfterRepeatedInsertions()
-    throws IllegalAccessException, IllegalArgumentException,
-    InvocationTargetException {
-        Random rand = new Random();
-        for (int i = 0; i < numRandomElements; i++) {
-            int r = 0;
-            int s = 0;
-            while (s <= r) {
-                r = rand.nextInt(valueCeiling);
-                s = rand.nextInt(valueCeiling);
-            }
-
-            Impl interval = new Impl(r, s);
-            emptyTree.insert(interval);
-            assertThat(mHasConsistentMaxEnds.invoke(emptyTree), is(true));
-        }
-    }
-    
-    @Test
-    public void testInsertFixupColoring() throws IllegalAccessException,
-    IllegalArgumentException, InvocationTargetException {
-        IntervalTree<Impl>.Node n = p282Tree.search(new Impl(4))
-            .orElseThrow(() -> new IllegalStateException("Can't find node [4, 5)"));
-        mInsertFixup.invoke(n);
-        assertThat(fIsBlack.get(n11), is(false));
-        assertThat(fIsBlack.get(n7), is(true));
-        assertThat(fIsBlack.get(n8), is(true));
-        assertThat(fIsBlack.get(n14), is(true));
-        assertThat(fIsBlack.get(n15), is(false));
-        assertThat(fIsBlack.get(n2), is(false));
-        assertThat(fIsBlack.get(n1), is(true));
-        assertThat(fIsBlack.get(n5), is(true));
-        assertThat(fIsBlack.get(n4), is(false));
-    }
-    
-    @Test
-    public void testInsertFixupParents() throws IllegalAccessException,
-    IllegalArgumentException, InvocationTargetException {
-        IntervalTree<Impl>.Node n = p282Tree.search(new Impl(4))
-            .orElseThrow(() -> new IllegalStateException("Can't find node [4, 5)"));
-        mInsertFixup.invoke(n);
-        assertThat(fParent.get(n11), is(n7));
-        assertThat(fParent.get(n7), is(fNil.get(p282Tree)));
-        assertThat(fParent.get(n8), is(n11));
-        assertThat(fParent.get(n14), is(n11));
-        assertThat(fParent.get(n15), is(n14));
-        assertThat(fParent.get(n2), is(n7));
-        assertThat(fParent.get(n1), is(n2));
-        assertThat(fParent.get(n5), is(n2));
-        assertThat(fParent.get(n4), is(n5));
-    }
-    
-    @Test
-    public void testInsertFixupLeftChildren() throws IllegalAccessException,
-    IllegalArgumentException, InvocationTargetException {
-        IntervalTree<Impl>.Node n = p282Tree.search(new Impl(4))
-            .orElseThrow(() -> new IllegalStateException("Can't find node [4, 5)"));
-        mInsertFixup.invoke(n);
-        assertThat(fLeft.get(n11), is(n8));
-        assertThat(fLeft.get(n7), is(n2));
-        assertThat(fLeft.get(n8), is(fNil.get(p282Tree)));
-        assertThat(fLeft.get(n14), is(fNil.get(p282Tree)));
-        assertThat(fLeft.get(n15), is(fNil.get(p282Tree)));
-        assertThat(fLeft.get(n2), is(n1));
-        assertThat(fLeft.get(n1), is(fNil.get(p282Tree)));
-        assertThat(fLeft.get(n5), is(n4));
-        assertThat(fLeft.get(n4), is(fNil.get(p282Tree)));
-    }
-    
-    @Test
-    public void testInsertFixupRightChildren() throws IllegalAccessException,
-    IllegalArgumentException, InvocationTargetException {
-        IntervalTree<Impl>.Node n = p282Tree.search(new Impl(4))
-            .orElseThrow(() -> new IllegalStateException("Can't find node [4, 5)"));
-        mInsertFixup.invoke(n);
-        assertThat(fRight.get(n11), is(n14));
-        assertThat(fRight.get(n7), is(n11));
-        assertThat(fRight.get(n8), is(fNil.get(p282Tree)));
-        assertThat(fRight.get(n14), is(n15));
-        assertThat(fRight.get(n15), is(fNil.get(p282Tree)));
-        assertThat(fRight.get(n2), is(n5));
-        assertThat(fRight.get(n1), is(fNil.get(p282Tree)));
-        assertThat(fRight.get(n5), is(fNil.get(p282Tree)));
-        assertThat(fRight.get(n4), is(fNil.get(p282Tree)));
-    }
-    
-    @Test
-    public void testNodeComparison() {
-        IntervalTree<Impl>.Node a = p282Tree.new Node(new Impl(0));
-        IntervalTree<Impl>.Node b = p282Tree.new Node(new Impl(0));
-        assertThat(a.compareTo(b), is(0));
-        assertThat(b.compareTo(a), is(0));
-        assertThat(a.compareTo(a), is(0));
+    public void testGappedTreeOverlapsNegative() {
+        assertThat(gappedTree.overlaps(new Impl(gappedUpperBound, gappedLowerBound)), is(false));
     }
     
     /**
@@ -707,9 +1042,9 @@ public class IntervalTreeTest {
             this.end = end;
         }
         
-        public Impl(int start) {
-            this.start = start;
-            end = start + 1;
+        public Impl(Impl i) {
+            this.start = i.start();
+            this.end = i.end();
         }
         
         @Override
