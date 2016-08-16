@@ -1084,6 +1084,7 @@ public class IntervalSetTree<T extends Interval> implements Iterable<T> {
     /**
      * An Iterator which walks along this IntervalTree's Nodes in ascending order.
      */
+    @SuppressWarnings("unused")
     private class TreeNodeIterator implements Iterator<Node> {
 
         private Node next;
@@ -1111,32 +1112,33 @@ public class IntervalSetTree<T extends Interval> implements Iterable<T> {
     /**
      * An Iterator which walks along this IntervalTree's Intervals in ascending
      * order.
-     * <p>
-     * This class just wraps a TreeNodeIterator and extracts each Node's Interval.
      */
     private class TreeIterator implements Iterator<T> {
         
-        private TreeNodeIterator nodeIter;
-        private Iterator<T> intervalIter;
+        private Iterator<T> iter;
+        private Node currentNode;
+        private Node nextNode;
         
         private TreeIterator(Node root) {
-            nodeIter = new TreeNodeIterator(root);
-            intervalIter = root.minimumNode().iterator();
+            currentNode = root.minimumNode();
+            nextNode = currentNode.successor();
+            iter = currentNode.iterator();
         }
 
         @Override
         public boolean hasNext() {
-            return nodeIter.hasNext() || intervalIter.hasNext();
+            return iter.hasNext() || !nextNode.isNil();
         }
 
         @Override
         public T next() {
-            if (intervalIter.hasNext()) {
-                return intervalIter.next();
+            if (iter.hasNext()) {
+                return iter.next();
             } else {
-                Node n = nodeIter.next();
-                intervalIter = n.iterator();
-                return intervalIter.next();
+                currentNode = nextNode;
+                nextNode = currentNode.successor();
+                iter = currentNode.iterator();
+                return iter.next();
             }
         }
     }
@@ -1180,27 +1182,32 @@ public class IntervalSetTree<T extends Interval> implements Iterable<T> {
      */
     private class OverlapperIterator implements Iterator<T> {
         
-        private OverlappingNodeIterator nodeIter;
-        private Iterator<T> intervalIter;
+        private Iterator<T> iter;
+        private Node currentNode;
+        private Node nextNode;
+        private T t;
         
         private OverlapperIterator(Node root, T t) {
-            nodeIter = new OverlappingNodeIterator(root, t);
-            intervalIter = root.minimumOverlappingNode(t).iterator();
+            this.t = t;
+            currentNode = root.minimumOverlappingNode(t);
+            nextNode = currentNode.nextOverlappingNode(t);
+            iter = currentNode.iterator();
         }
 
         @Override
         public boolean hasNext() {
-            return nodeIter.hasNext() || intervalIter.hasNext();
+            return iter.hasNext() || !nextNode.isNil();
         }
 
         @Override
         public T next() {
-            if (intervalIter.hasNext()) {
-                return intervalIter.next();
+            if (iter.hasNext()) {
+                return iter.next();
             } else {
-                Node n = nodeIter.next();
-                intervalIter = n.iterator();
-                return intervalIter.next();
+                currentNode = nextNode;
+                nextNode = currentNode.nextOverlappingNode(t);
+                iter = currentNode.iterator();
+                return iter.next();
             }
         }
     }
