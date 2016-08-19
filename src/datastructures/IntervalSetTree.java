@@ -115,7 +115,7 @@ public class IntervalSetTree<T extends Interval> implements Iterable<T> {
      * The "following" Node is the next Node in this tree relative to the Node
      * corresponding to the passed Interval
      * @param t - the Interval to search for
-     * @return an Iterator over the Intervals in the next Node, possiby empty
+     * @return an Iterator over the Intervals in the next Node, possibly empty
      * if this Node is the maximum Node.
      */
     public Iterator<T> successors(T t) {
@@ -133,11 +133,13 @@ public class IntervalSetTree<T extends Interval> implements Iterable<T> {
     }
 
     /**
-     * The previous Interval in this IntervalTree
+     * The Intervals in the preceding Node of this IntervalSetTree.
+     * <p>
+     * The "preceding" Node is the previous Node in this tree relative to the
+     * Node corresponding to the passed Interval
      * @param t - the Interval to search for
-     * @return an Optional containing, if it exists, the previous Interval in
-     * this IntervalTree; otherwise (if t is the minimum Interval, or if this
-     * IntervalTree does not contain t), an empty Optional.
+     * @return an Iterator over the Intervals in the next Node, possibly empty
+     * if this Node is the minimum Node.
      */
     public Iterator<T> predecessors(T t) {
         Node n = search(t);
@@ -161,7 +163,7 @@ public class IntervalSetTree<T extends Interval> implements Iterable<T> {
     }
     
     /**
-     * An Iterator over the Intervals in this IntervalTree that overlap the
+     * An Iterator over the Intervals in this IntervalSetTree that overlap the
      * given Interval
      * @param t - the overlapping Interval
      */
@@ -170,8 +172,8 @@ public class IntervalSetTree<T extends Interval> implements Iterable<T> {
     }
     
     /**
-     * Whether or not any of the Intervals in this IntervalTree overlap the given
-     * Interval
+     * Whether or not any of the Intervals in this IntervalSetTree overlap the
+     * given Interval
      * @param t - the potentially overlapping Interval
      */
     public boolean overlaps(T t) {
@@ -179,7 +181,7 @@ public class IntervalSetTree<T extends Interval> implements Iterable<T> {
     }
     
     /**
-     * The number of Intervals in this IntervalTree that overlap the given
+     * The number of Intervals in this IntervalSetTree that overlap the given
      * Interval
      * @param t - the overlapping Interval
      */
@@ -188,11 +190,14 @@ public class IntervalSetTree<T extends Interval> implements Iterable<T> {
     }
     
     /**
-     * The least Interval in this IntervalTree that overlaps the given Interval
+     * The minimum Intervals in this IntervalSetTree that overlap the given
+     * Interval
+     * <p>
+     * There may be more than one minimum Interval if two Intervals have the same
+     * start and end coordinates
      * @param t - the overlapping Interval
-     * @return an Optional containing, if it exists, the least Interval in this
-     * IntervalTree that overlaps the given Interval; otherwise (i.e., if there
-     * is no overlap), an empty Optional
+     * @return a Iterator over the minimum Intervals that overlap the given
+     * Interval; an empty Iterator if no such Interval exists.
      */
     public Iterator<T> minimumOverlappers(T t) {
         Node n = root.minimumOverlappingNode(t);
@@ -204,12 +209,13 @@ public class IntervalSetTree<T extends Interval> implements Iterable<T> {
     ///////////////////////////////
 
     /**
-     * Inserts the given value into the IntervalTree.
+     * Inserts the given Interval into this IntervalSetTree.
      * <p>
-     * This method constructs a new Node containing the given value and places
-     * it into the tree. If the value already exists within the tree, the tree
-     * remains unchanged.
-     * @param t - the value to place into the tree
+     * If the Interval already exists within the tree, the tree remains
+     * unchanged. If the Interval doesn't exist, but has the same start and end
+     * coordinates as another contained Interval, it is placed within the tree
+     * as normal.
+     * @param t - the Interval to place into this tree
      * @return if the value did not already exist, i.e., true if the tree was
      * changed, false if it was not
      */
@@ -270,56 +276,57 @@ public class IntervalSetTree<T extends Interval> implements Iterable<T> {
     //////////////////////////////
     
     /**
-     * Deletes the given value from this IntervalTree.
+     * Deletes the given Interval from this IntervalSetTree.
      * <p>
-     * If the value does not exist, this IntervalTree remains unchanged. 
+     * If the Interval does not exist, this IntervalTree remains unchanged. 
      * @param t - the Interval to delete from the tree
-     * @return whether or not an Interval was removed from this IntervalTree
+     * @return whether or not an Interval was removed from this tree
      */
     public boolean delete(T t) {
         Node n = search(t);
-
-        if (n.isNil()) {
-            //System.out.println("Could not find " + t.toString());
-        } else {
-            //System.out.println("Found " + t.toString());
-        }
         
         boolean rtrn = n.intervals.remove(t);
+
         if (rtrn) {
-            //System.out.println("Deleted " + t.toString() + " from internal set");
             size--;
-        } else {
-            //System.out.println("Did not delete " + t.toString() + " from nil");
         }
+
         if (n.intervals.isEmpty()) {
-            //System.out.println("Node is now empty; deleting");
             n.delete(); // Node#delete does nothing if n.isNil()
         }
+
         return rtrn;
     }
     
+    /**
+     * Deletes all Intervals from this IntervalSetTree that have the same start
+     * and end coordinates as the given Interval
+     * @param t - the Interval to delete
+     * @return whether or not any Intervals were removed from this tree
+     */
     public boolean deleteSameBounds(T t) {
         return search(t).delete();
     }
     
     /**
-     * Deletes the smallest Interval from this IntervalTree.
+     * Deletes the smallest Intervals from this IntervalSetTree.
      * <p>
      * If there is no smallest Interval (that is, if the tree is empty), this
-     * IntervalTree remains unchanged.
-     * @return whether or not an Interval was removed from this IntervalTree
+     * IntervalSetTree remains unchanged. If multiple Intervals share the same
+     * start and end value, all are removed.
+     * @return whether or not any Intervals were removed from this tree
      */
     public boolean deleteMin() {            // Node#delete does nothing and
         return root.minimumNode().delete(); // returns false if t.isNil()
     }
     
     /**
-     * Deletes the greatest Interval from this IntervalTree.
+     * Deletes the greatest Intervals from this IntervalSetTree.
      * <p>
      * If there is no greatest Interval (that is, if the tree is empty), this
-     * IntervalTree remains unchanged.
-     * @return whether or not an Interval was removed from this IntervalTree
+     * IntervalSetTree remains unchanged. If multiple Intervals share the same
+     * start and end value, all are removed.
+     * @return whether or not any Intervals were removed from this tree
      */
     public boolean deleteMax() {            // Node#delete does nothing and
         return root.maximumNode().delete(); // returns false if t.isNil()
@@ -327,12 +334,12 @@ public class IntervalSetTree<T extends Interval> implements Iterable<T> {
     
     /**
      * Deletes all Intervals that overlap the given Interval from this
-     * IntervalTree.
+     * IntervalSetTree.
      * <p>
-     * If there are no overlapping Intervals, this IntervalTree remains
+     * If there are no overlapping Intervals, this IntervalSetTree remains
      * unchanged.
      * @param t - the overlapping Interval
-     * @return whether or not an Interval was removed from this IntervalTree
+     * @return whether or not any Interval were removed from this tree
      */
     public boolean deleteOverlappers(T t) {
         // TODO 
@@ -375,7 +382,7 @@ public class IntervalSetTree<T extends Interval> implements Iterable<T> {
         /**
          * Constructs a Node with no data.
          * <p>
-         * This Node has a null interval field, is black, and has all pointers
+         * This Node contains no Intervals, is black, and has all pointers
          * pointing at itself. This is intended to be used as the sentinel
          * node in the tree ("nil" in CLRS).
          */
@@ -408,7 +415,7 @@ public class IntervalSetTree<T extends Interval> implements Iterable<T> {
         }
         
         /**
-         * The start of the Interval in this Node
+         * The start of the Intervals in this Node
          */
         @Override
         public int start() {
@@ -416,7 +423,7 @@ public class IntervalSetTree<T extends Interval> implements Iterable<T> {
         }
 
         /**
-         * The end of the Interval in this Node
+         * The end of the Intervals in this Node
          */
         @Override
         public int end() {
@@ -428,9 +435,14 @@ public class IntervalSetTree<T extends Interval> implements Iterable<T> {
         ///////////////////////////////////
         
         /**
-         * Searches the subtree rooted at this Node for the given Interval.
+         * Searches the subtree rooted at this Node for the Node with the
+         * coordinates represented by this Interval.
+         * <p>
+         * The Interval does not need to be contained within the Node, just
+         * have the same coordinates, to be returned.
          * @param t - the Interval to search for
-         * @return the Node with the given Interval, if it exists; otherwise,
+         * @return the Node with the corresponding coordinates, if it exists;
+         * otherwise,
          * the sentinel Node 
          */
         private Node search(T t) {
@@ -444,8 +456,8 @@ public class IntervalSetTree<T extends Interval> implements Iterable<T> {
         }
 
         /**
-         * Searches the subtree rooted at this Node for its minimum Interval.
-         * @return the Node with the minimum Interval, if it exists; otherwise,
+         * Searches the subtree rooted at this Node for its minimum Intervals.
+         * @return the Node with the minimum Intervals, if it exists; otherwise,
          * the sentinel Node
          */
         private Node minimumNode() {
@@ -459,8 +471,8 @@ public class IntervalSetTree<T extends Interval> implements Iterable<T> {
         }
 
         /**
-         * Searches the subtree rooted at this Node for its maximum Interval.
-         * @return the Node with the maximum Interval, if it exists; otherwise,
+         * Searches the subtree rooted at this Node for its maximum Intervals.
+         * @return the Node with the maximum Intervals, if it exists; otherwise,
          * the sentinel Node
          */
         private Node maximumNode() {
@@ -526,7 +538,7 @@ public class IntervalSetTree<T extends Interval> implements Iterable<T> {
          * The only guarantee of this method is that the returned Node overlaps
          * the Interval t. This method is meant to be a quick helper method to
          * determine if any overlap exists between an Interval and any of an
-         * IntervalTree's Intervals. The returned Node will be the first
+         * IntervalSetTree's Intervals. The returned Node will be the first
          * overlapping one found.
          * @param t - the given Interval
          * @return an overlapping Node from this Node's subtree, if one exists;
@@ -636,13 +648,13 @@ public class IntervalSetTree<T extends Interval> implements Iterable<T> {
         }
         
         /**
-         * The number of Nodes in this Node's subtree that overlap the given
+         * The number of Intervals in this Node's subtree that overlap the given
          * Interval t.
          * <p>
-         * This number includes this Node if this Node overlaps t. This method
-         * iterates over all overlapping Nodes, so if you ultimately need to
-         * inspect the Nodes, it will be more efficient to simply create the
-         * Iterator yourself.
+         * This number includes this Node's Intervals if they overlap t. This
+         * method iterates over all overlapping Nodes, so if you ultimately
+         * need to inspect the Intervals, it will be more efficient to simply
+         * create the Iterator yourself.
          * @param t - the overlapping Interval
          * @return the number of overlapping Nodes
          */
@@ -890,6 +902,13 @@ public class IntervalSetTree<T extends Interval> implements Iterable<T> {
             end = o.end;
         }
         
+        /**
+         * Returns a String representation of this Node.
+         * <p>
+         * This representation will display the start and end coordinates, the
+         * color, and the max-end value of this Node. Useful for quick
+         * debugging outside of the debugger.
+         */
         @Override
         public String toString() {
             if (isNil()) {
@@ -1109,7 +1128,7 @@ public class IntervalSetTree<T extends Interval> implements Iterable<T> {
     ///////////////////////
     
     /**
-     * An Iterator which walks along this IntervalTree's Nodes in ascending order.
+     * An Iterator which walks along this IntervalSetTree's Nodes in ascending order.
      */
     @SuppressWarnings("unused")
     private class TreeNodeIterator implements Iterator<Node> {
@@ -1137,8 +1156,8 @@ public class IntervalSetTree<T extends Interval> implements Iterable<T> {
     }
 
     /**
-     * An Iterator which walks along this IntervalTree's Intervals in ascending
-     * order.
+     * An Iterator which walks along this IntervalSetTree's Intervals in
+     * ascending order.
      */
     private class TreeIterator implements Iterator<T> {
         
@@ -1171,7 +1190,7 @@ public class IntervalSetTree<T extends Interval> implements Iterable<T> {
     }
  
     /**
-     * An Iterator which walks along this IntervalTree's Nodes that overlap
+     * An Iterator which walks along this IntervalSetTree's Nodes that overlap
      * a given Interval in ascending order.
      */
     private class OverlappingNodeIterator implements Iterator<Node> {
@@ -1201,11 +1220,8 @@ public class IntervalSetTree<T extends Interval> implements Iterable<T> {
     }
 
     /**
-     * An Iterator which walks along this IntervalTree's Intervals that overlap
+     * An Iterator which walks along this IntervalSetTree's Intervals that overlap
      * a given Interval in ascending order.
-     * <p>
-     * This class just wraps an OverlappingNodeIterator and extracts each Node's
-     * Interval.
      */
     private class OverlapperIterator implements Iterator<T> {
         
@@ -1244,7 +1260,7 @@ public class IntervalSetTree<T extends Interval> implements Iterable<T> {
     ///////////////////////////////
     
     /**
-     * Whether or not this IntervalTree is a valid binary-search tree.
+     * Whether or not this IntervalSetTree is a valid binary-search tree.
      * <p>
      * This method will return false if any Node is less than its left child
      * or greater than its right child.
@@ -1258,7 +1274,7 @@ public class IntervalSetTree<T extends Interval> implements Iterable<T> {
     }
 
     /**
-     * Whether or not this IntervalTree is balanced.
+     * Whether or not this IntervalSetTree is balanced.
      * <p>
      * This method will return false if all of the branches (from root to leaf)
      * do not contain the same number of black nodes. (Specifically, the
@@ -1282,7 +1298,7 @@ public class IntervalSetTree<T extends Interval> implements Iterable<T> {
     }
     
     /**
-     * Whether or not this IntervalTree has a valid red coloring.
+     * Whether or not this IntervalSetTree has a valid red coloring.
      * <p>
      * This method will return false if all of the branches (from root to leaf)
      * do not contain the same number of black nodes. (Specifically, the
@@ -1298,7 +1314,7 @@ public class IntervalSetTree<T extends Interval> implements Iterable<T> {
     }
     
     /**
-     * Whether or not this IntervalTree has consistent maxEnd values.
+     * Whether or not this IntervalSetTree has consistent maxEnd values.
      * <p>
      * This method will only return true if each Node has a maxEnd value equal
      * to the highest interval end value of all the intervals in its subtree.
