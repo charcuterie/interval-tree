@@ -9,6 +9,17 @@ import java.util.Set;
 /**
  * A balanced binary-search tree keyed by Interval objects.
  * <p>
+ * This tree does not store exact duplicates, but will store Intervals that
+ * have identical coordinates but differ in some other aspect (e.g., a name
+ * field). Each Node of this tree stores its "identical" Intervals in a
+ * HashSet; hence the name "IntervalSetTree".
+ * <p>
+ * Two Intervals, i and j, will be stored as distinct Intervals in the same
+ * Node if and only if:
+ * <ul>
+ * <li>i.compareTo(j) == 0
+ * <li>i.equals(j) == false
+ * </ul><p>
  * The underlying data-structure is a red-black tree largely implemented from
  * CLRS (Introduction to Algorithms, 2nd edition) with the interval-tree
  * extensions mentioned in section 14.3
@@ -21,7 +32,7 @@ public class IntervalSetTree<T extends Interval> implements Iterable<T> {
     private int size;   // Size of the tree. Updated by insert() and delete()
 
     /**
-     * Constructs an empty IntervalTree.
+     * Constructs an empty IntervalSetTree.
      */
     public IntervalSetTree() {
         nil = new Node();
@@ -30,9 +41,9 @@ public class IntervalSetTree<T extends Interval> implements Iterable<T> {
     }
     
     /**
-     * Constructs an IntervalTree containing a single node corresponding to
-     * the given interval.
-     * @param t - the interval to add to the tree
+     * Constructs an IntervalSetTree with a single node containing the given
+     * Interval.
+     * @param t - the Interval to add to this IntervalSetTree
      */
     public IntervalSetTree(T t) {
         nil = new Node();
@@ -46,31 +57,34 @@ public class IntervalSetTree<T extends Interval> implements Iterable<T> {
     ///////////////////////////////////
     
     /**
-     * Whether this IntervalTree is empty or not.
+     * Whether this IntervalSetTree is empty or not.
      */
     public boolean isEmpty() {
         return root.isNil();
     }
     
     /**
-     * The number of intervals stored in this IntervalTree.
+     * The number of intervals stored in this IntervalSetTree.
      */
     public int size() {
         return size;
     }
     
     /**
-     * The Node in this IntervalTree that contains the given Interval.
+     * The Node in this IntervalSetTree that has the same start and end
+     * coordinates of the given Interval.
      * <p>
-     * This method returns the nil Node if the Interval t cannot be found.
-     * @param t - the Interval to search for.
+     * It is not necessarily the case that the Node contains the Interval,
+     * just that the boundary coordinates are the same. This method returns
+     * the nil Node if no valid Node can be found.
+     * @param t - the Interval to search for
      */
     private Node search(T t) {
         return root.search(t);
     }
     
     /**
-     * Whether or not this IntervalTree contains the given Interval.
+     * Whether or not this IntervalSetTree contains the given Interval.
      * @param t - the Interval to search for
      */
     public boolean contains(T t) {
@@ -78,9 +92,8 @@ public class IntervalSetTree<T extends Interval> implements Iterable<T> {
     }
     
     /**
-     * The minimum value in this IntervalTree
-     * @return an Optional containing, if it exists, the minimum value in this
-     * IntervalTree; otherwise (i.e., if this is empty), an empty Optional.
+     * The Intervals in the minimum Node of this IntervalSetTree.
+     * @return an Iterator, possibly empty, over all minimum Intervals
      */
     public Iterator<T> minimum() {
         Node n = root.minimumNode();
@@ -88,9 +101,8 @@ public class IntervalSetTree<T extends Interval> implements Iterable<T> {
     }
 
     /**
-     * The maximum value in this IntervalTree
-     * @return an Optional containing, if it exists, the maximum value in this
-     * IntervalTree; otherwise (i.e., if this is empty), an empty Optional.
+     * The Intervals in the maximum Node of this IntervalSetTree.
+     * @return an Iterator, possibly empty, over all maximum Intervals
      */
     public Iterator<T> maximum() {
         Node n = root.maximumNode();
@@ -98,11 +110,13 @@ public class IntervalSetTree<T extends Interval> implements Iterable<T> {
     }
     
     /**
-     * The next Interval in this IntervalTree
+     * The Intervals in the following Node of this IntervalSetTree.
+     * <p>
+     * The "following" Node is the next Node in this tree relative to the Node
+     * corresponding to the passed Interval
      * @param t - the Interval to search for
-     * @return an Optional containing, if it exists, the next Interval in this
-     * IntervalTree; otherwise (if t is the maximum Interval, or if this
-     * IntervalTree does not contain t), an empty Optional.
+     * @return an Iterator over the Intervals in the next Node, possiby empty
+     * if this Node is the maximum Node.
      */
     public Iterator<T> successors(T t) {
         Node n = search(t);
@@ -264,11 +278,22 @@ public class IntervalSetTree<T extends Interval> implements Iterable<T> {
      */
     public boolean delete(T t) {
         Node n = search(t);
+
+        if (n.isNil()) {
+            //System.out.println("Could not find " + t.toString());
+        } else {
+            //System.out.println("Found " + t.toString());
+        }
+        
         boolean rtrn = n.intervals.remove(t);
         if (rtrn) {
+            //System.out.println("Deleted " + t.toString() + " from internal set");
             size--;
+        } else {
+            //System.out.println("Did not delete " + t.toString() + " from nil");
         }
         if (n.intervals.isEmpty()) {
+            //System.out.println("Node is now empty; deleting");
             n.delete(); // Node#delete does nothing if n.isNil()
         }
         return rtrn;
@@ -861,6 +886,8 @@ public class IntervalSetTree<T extends Interval> implements Iterable<T> {
          */
         private void copyData(Node o) {
             intervals = o.intervals;
+            start = o.start;
+            end = o.end;
         }
         
         @Override

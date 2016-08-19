@@ -29,9 +29,9 @@ public class IntervalSetTreeTest {
 
     private int intervalIdCap = 5;  // Intervals have IDs, [0..4]
     
-    private IntervalSetTree<Impl> emptyTree;                 // an empty tree
+    private IntervalSetTree<Impl> emptyTree;              // an empty tree
     
-    private IntervalSetTree<Impl> singletonTree;             // a tree with one node:
+    private IntervalSetTree<Impl> singletonTree;          // a tree with one node:
     private Impl singletonValue = new Impl(0, 10);        // [0, 10)
     private Impl copyOfSingletonValue = new Impl(singletonValue);
     private Impl singletonValueDifferentId = new Impl(0, 10, 1);
@@ -42,17 +42,17 @@ public class IntervalSetTreeTest {
     
     private IntervalSetTree<Impl> randomTree;
     private int randomUpperBound = 100;
-    private int numRandomIntervals = 10;
+    private int numRandomIntervals = 2000;
     private Set<Impl> randomIntervals;
     private Impl notRandomValue = new Impl(5000, 10000);
     private Impl overlapsRandomTree = new Impl(20, 40);
-/*    
+    
     private IntervalSetTree<Impl> gappedTree;  // A tree with a dead-zone in the
     private int gappedUpperBound = 3000;       // middle to test overlap methods
     private int gappedLowerBound = 4000;
     private int numGappedIntervals = 2500;     // in each section
     private Set<Impl> gappedIntervals;
-*/   
+   
     
     // Private debugging methods.
     private Method mIsBST;
@@ -98,7 +98,7 @@ public class IntervalSetTreeTest {
             randomIntervals.add(new Impl(r, s, n));
             randomTree.insert(new Impl(r, s, n));
         }
-/*        
+        
         gappedTree = new IntervalSetTree<Impl>();
         gappedIntervals = new HashSet<Impl>();
 
@@ -126,7 +126,7 @@ public class IntervalSetTreeTest {
             
             gappedIntervals.add(new Impl(r, s, n));
             gappedTree.insert(new Impl(r, s, n));
-        }*/
+        }
     }
     
     @Rule
@@ -1036,6 +1036,13 @@ public class IntervalSetTreeTest {
     }
 
     @Test
+    public void testRandomTreeIterable() {
+        Set<Impl> s = new HashSet<>();
+        randomTree.iterator().forEachRemaining(s::add);
+        assertThat(s, is(randomIntervals));
+    }
+    
+    @Test
     public void testRandomTreeOverlapsPositive() {        
         assertThat(randomTree.overlaps(overlapsRandomTree), is(true));
     }
@@ -1119,32 +1126,17 @@ public class IntervalSetTreeTest {
     IllegalAccessException, IllegalArgumentException, InvocationTargetException {
         List<Impl> randomIntervalList = new ArrayList<>(randomIntervals);
         Collections.shuffle(randomIntervalList);
-        int count = randomIntervalList.size();
-        System.out.println("Starting tree size is: " + randomTree.size());
+          
+        int count = randomIntervalList.size();        
 
-        System.out.println(StreamSupport.stream(randomTree.spliterator(), false).count());
-        
-        int j = 0;
-        
         assertThat(randomTree.size(), is(count));
         
         for (Impl i : randomIntervalList) {
-            System.out.println("Looking at interval: " + i.toString());
-            if (randomTree.contains(i)) {
-                System.out.println("Tree contains interval");
-            } else {
-                System.out.println("Tree does not contain interval");
-            }
             if (randomTree.delete(i)) {
-                System.out.println("deleted interval");
-                j++;
-            } else {
-                System.out.println("did not delete interval");
+                count--;
             }
-//            assertThat(randomTree.size(), is(count));
+            assertThat(randomTree.size(), is(count));
         }
-        System.out.println("Deleted " + j + " things");
-        System.out.println(randomTree.size());
         assertThat(randomTree.isEmpty(), is(true));
     }
     
@@ -1201,7 +1193,7 @@ public class IntervalSetTreeTest {
     ///////////////////////
     // Gapped tree tests //
     ///////////////////////
-/*
+
     @Test
     public void testGappedTreeOverlapsPositive() {
         assertThat(gappedTree.overlaps(new Impl(0, gappedUpperBound)), is(true));
@@ -1230,7 +1222,7 @@ public class IntervalSetTreeTest {
         Impl interval = new Impl(gappedUpperBound, gappedLowerBound);
         assertThat(gappedTree.deleteOverlappers(interval), is(false));
     }
- */   
+   
     /**
      * Simple implementation of Interval for testing
      */

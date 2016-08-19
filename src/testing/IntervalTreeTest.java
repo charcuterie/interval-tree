@@ -956,6 +956,7 @@ public class IntervalTreeTest {
             randomTree.delete(i);
             count--;
             assertThat(randomTree.size(), is(count));
+            assertThat(randomTree.contains(i), is(false));
         }
         
         assertThat(randomTree.isEmpty(), is(true));
