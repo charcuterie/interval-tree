@@ -1,29 +1,16 @@
-package testing;
-
-import static org.hamcrest.CoreMatchers.is;
-import static org.junit.Assert.assertThat;
-
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.List;
-import java.util.NoSuchElementException;
-import java.util.Random;
-import java.util.Set;
-import java.util.stream.Collectors;
-import java.util.stream.StreamSupport;
-
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
-import datastructures.Interval;
-import datastructures.IntervalSetTree;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.util.*;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
+
+import static org.hamcrest.CoreMatchers.is;
+import static org.junit.Assert.assertThat;
 
 public class IntervalSetTreeTest {
 
@@ -61,8 +48,7 @@ public class IntervalSetTreeTest {
     private Method mHasConsistentMaxEnds;
 
     @Before
-    public void setup() throws NoSuchMethodException, SecurityException,
-    NoSuchFieldException, IllegalArgumentException, IllegalAccessException {
+    public void setup() throws NoSuchMethodException, SecurityException, IllegalArgumentException {
 
         /////////////////////////////////////////////////////////
         // Make private methods accessible for easier testing. //

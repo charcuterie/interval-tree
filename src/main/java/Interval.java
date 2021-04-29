@@ -1,5 +1,3 @@
-package datastructures;
-
 /**
  * Closed-open, [), interval on the integer number line. 
  */
