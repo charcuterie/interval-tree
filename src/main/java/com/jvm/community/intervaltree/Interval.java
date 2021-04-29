@@ -1,3 +1,5 @@
+package com.jvm.community.intervaltree;
+
 /**
  * Closed-open, [), interval on the integer number line. 
  */

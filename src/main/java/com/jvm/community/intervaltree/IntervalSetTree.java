@@ -1,3 +1,5 @@
+package com.jvm.community.intervaltree;
+
 import java.util.*;
 
 /**
@@ -17,7 +19,8 @@ import java.util.*;
  * The underlying data-structure is a red-black tree largely implemented from
  * CLRS (Introduction to Algorithms, 2nd edition) with the interval-tree
  * extensions mentioned in section 14.3
- * @param <I> - the type of Interval this tree contains
+ *
+ * @param <T> - the type of Interval this tree contains
  */
 public class IntervalSetTree<T extends Interval> implements Iterable<T> {
 
@@ -33,7 +36,7 @@ public class IntervalSetTree<T extends Interval> implements Iterable<T> {
         root = nil;
         size = 0;
     }
-    
+
     /**
      * Constructs an IntervalSetTree with a single node containing the given
      * Interval.
@@ -49,21 +52,21 @@ public class IntervalSetTree<T extends Interval> implements Iterable<T> {
     ///////////////////////////////////
     // Tree -- General query methods //
     ///////////////////////////////////
-    
+
     /**
      * Whether this IntervalSetTree is empty or not.
      */
     public boolean isEmpty() {
         return root.isNil();
     }
-    
+
     /**
      * The number of intervals stored in this IntervalSetTree.
      */
     public int size() {
         return size;
     }
-    
+
     /**
      * The Node in this IntervalSetTree that has the same start and end
      * coordinates of the given Interval.
@@ -76,7 +79,7 @@ public class IntervalSetTree<T extends Interval> implements Iterable<T> {
     private Node search(T t) {
         return root.search(t);
     }
-    
+
     /**
      * Whether or not this IntervalSetTree contains the given Interval.
      * @param t - the Interval to search for
@@ -84,7 +87,7 @@ public class IntervalSetTree<T extends Interval> implements Iterable<T> {
     public boolean contains(T t) {
         return search(t).intervals.contains(t);
     }
-    
+
     /**
      * The Intervals in the minimum Node of this IntervalSetTree.
      * @return an Iterator, possibly empty, over all minimum Intervals
@@ -102,7 +105,7 @@ public class IntervalSetTree<T extends Interval> implements Iterable<T> {
         Node n = root.maximumNode();
         return n.isNil() ? Collections.emptyIterator() : n.intervals.iterator();
     }
-    
+
     /**
      * The Intervals in the following Node of this IntervalSetTree.
      * <p>
@@ -155,7 +158,7 @@ public class IntervalSetTree<T extends Interval> implements Iterable<T> {
     public Iterator<T> iterator() {
         return new TreeIterator(root);
     }
-    
+
     /**
      * An Iterator over the Intervals in this IntervalSetTree that overlap the
      * given Interval
@@ -164,7 +167,7 @@ public class IntervalSetTree<T extends Interval> implements Iterable<T> {
     public Iterator<T> overlappers(T t) {
         return root.overlappers(t);
     }
-    
+
     /**
      * Whether or not any of the Intervals in this IntervalSetTree overlap the
      * given Interval
@@ -173,7 +176,7 @@ public class IntervalSetTree<T extends Interval> implements Iterable<T> {
     public boolean overlaps(T t) {
         return !root.anyOverlappingNode(t).isNil();
     }
-    
+
     /**
      * The number of Intervals in this IntervalSetTree that overlap the given
      * Interval
@@ -182,7 +185,7 @@ public class IntervalSetTree<T extends Interval> implements Iterable<T> {
     public int numOverlappers(T t) {
         return root.numOverlappingIntervals(t);
     }
-    
+
     /**
      * The minimum Intervals in this IntervalSetTree that overlap the given
      * Interval
@@ -197,7 +200,7 @@ public class IntervalSetTree<T extends Interval> implements Iterable<T> {
         Node n = root.minimumOverlappingNode(t);
         return n.isNil() ? Collections.emptyIterator() : n.intervals.iterator();
     }
-    
+
     ///////////////////////////////
     // Tree -- Insertion methods //
     ///////////////////////////////
@@ -214,14 +217,14 @@ public class IntervalSetTree<T extends Interval> implements Iterable<T> {
      * changed, false if it was not
      */
     public boolean insert(T t) {
-        
+
         Node y = nil;
         Node x = root;
 
         // Traverse the tree down to a leaf
         while (!x.isNil()) {
             y = x;
-            
+
             // Update maxEnd on the way down.
             x.maxEnd = Math.max(x.maxEnd, t.end());
 
@@ -255,7 +258,7 @@ public class IntervalSetTree<T extends Interval> implements Iterable<T> {
                 assert(cmp == 1);
                 y.right = z;            // 3) New node is right-child leaf
             }
-            
+
             z.left = nil;
             z.right = nil;
             z.redden();
@@ -264,21 +267,21 @@ public class IntervalSetTree<T extends Interval> implements Iterable<T> {
         size++;
         return true;
     }
-    
+
     //////////////////////////////
     // Tree -- Deletion methods //
     //////////////////////////////
-    
+
     /**
      * Deletes the given Interval from this IntervalSetTree.
      * <p>
-     * If the Interval does not exist, this IntervalTree remains unchanged. 
+     * If the Interval does not exist, this .IntervalTree remains unchanged.
      * @param t - the Interval to delete from the tree
      * @return whether or not an Interval was removed from this tree
      */
     public boolean delete(T t) {
         Node n = search(t);
-        
+
         boolean rtrn = n.intervals.remove(t);
 
         if (rtrn) {
@@ -291,7 +294,7 @@ public class IntervalSetTree<T extends Interval> implements Iterable<T> {
 
         return rtrn;
     }
-    
+
     /**
      * Deletes all Intervals from this IntervalSetTree that have the same start
      * and end coordinates as the given Interval
@@ -301,7 +304,7 @@ public class IntervalSetTree<T extends Interval> implements Iterable<T> {
     public boolean deleteSameBounds(T t) {
         return search(t).delete();
     }
-    
+
     /**
      * Deletes the smallest Intervals from this IntervalSetTree.
      * <p>
@@ -313,7 +316,7 @@ public class IntervalSetTree<T extends Interval> implements Iterable<T> {
     public boolean deleteMin() {            // Node#delete does nothing and
         return root.minimumNode().delete(); // returns false if t.isNil()
     }
-    
+
     /**
      * Deletes the greatest Intervals from this IntervalSetTree.
      * <p>
@@ -325,7 +328,7 @@ public class IntervalSetTree<T extends Interval> implements Iterable<T> {
     public boolean deleteMax() {            // Node#delete does nothing and
         return root.maximumNode().delete(); // returns false if t.isNil()
     }
-    
+
     /**
      * Deletes all Intervals that overlap the given Interval from this
      * IntervalSetTree.
@@ -336,7 +339,7 @@ public class IntervalSetTree<T extends Interval> implements Iterable<T> {
      * @return whether or not any Interval were removed from this tree
      */
     public boolean deleteOverlappers(T t) {
-        // TODO 
+        // TODO
         // Replacing the line
         //    s.forEach(n -> delete(n.interval()))
         // with
@@ -358,9 +361,9 @@ public class IntervalSetTree<T extends Interval> implements Iterable<T> {
      * A representation of a node in an interval tree.
      */
     private class Node implements Interval, Iterable<T> {
-        
+
         /* Most of the "guts" of the interval tree are actually methods called
-         * by nodes. For example, IntervalTree#delete(val) searches up the Node
+         * by nodes. For example, .IntervalTree#delete(val) searches up the Node
          * containing val; then that Node deletes itself with Node#delete().
          */
 
@@ -387,10 +390,10 @@ public class IntervalSetTree<T extends Interval> implements Iterable<T> {
             right = this;
             blacken();
         }
-        
+
         /**
          * Constructs a Node containing the given Interval.
-         * @param data - the Interval to be contained within this Node
+         * @param interval - the Interval to be contained within this Node
          */
         public Node(T interval) {
             intervals = new HashSet<T>();
@@ -403,11 +406,11 @@ public class IntervalSetTree<T extends Interval> implements Iterable<T> {
             maxEnd = end;
             redden();
         }
-        
+
         public Iterator<T> iterator() {
             return intervals.iterator();
         }
-        
+
         /**
          * The start of the Intervals in this Node
          */
@@ -423,11 +426,11 @@ public class IntervalSetTree<T extends Interval> implements Iterable<T> {
         public int end() {
             return end;
         }
-        
+
         ///////////////////////////////////
         // Node -- General query methods //
         ///////////////////////////////////
-        
+
         /**
          * Searches the subtree rooted at this Node for the Node with the
          * coordinates represented by this Interval.
@@ -437,12 +440,12 @@ public class IntervalSetTree<T extends Interval> implements Iterable<T> {
          * @param t - the Interval to search for
          * @return the Node with the corresponding coordinates, if it exists;
          * otherwise,
-         * the sentinel Node 
+         * the sentinel Node
          */
         private Node search(T t) {
 
             Node n = this;
-            
+
             while (!n.isNil() && t.compareTo(n) != 0) {
                 n = t.compareTo(n) == -1 ? n.left : n.right;
             }
@@ -455,9 +458,9 @@ public class IntervalSetTree<T extends Interval> implements Iterable<T> {
          * the sentinel Node
          */
         private Node minimumNode() {
-            
+
             Node n = this;
-            
+
             while (!n.left.isNil()) {
                 n = n.left;
             }
@@ -470,33 +473,33 @@ public class IntervalSetTree<T extends Interval> implements Iterable<T> {
          * the sentinel Node
          */
         private Node maximumNode() {
-            
+
             Node n = this;
-            
+
             while (!n.right.isNil()) {
                 n = n.right;
             }
             return n;
         }
-        
+
         /**
          * The successor of this Node.
          * @return the Node following this Node, if it exists; otherwise the
          * sentinel Node
          */
         private Node successor() {
-            
+
             if (!right.isNil()) {
                 return right.minimumNode();
             }
-            
+
             Node x = this;
             Node y = parent;
             while (!y.isNil() && x == y.right) {
                 x = y;
                 y = y.parent;
             }
-            
+
             return y;
         }
 
@@ -506,25 +509,25 @@ public class IntervalSetTree<T extends Interval> implements Iterable<T> {
          * sentinel Node
          */
         private Node predecessor() {
-            
+
             if (!left.isNil()) {
                 return left.maximumNode();
             }
-            
+
             Node x = this;
             Node y = parent;
             while (!y.isNil() && x == y.left) {
                 x = y;
                 y = y.parent;
             }
-            
+
             return y;
         }
-        
+
         ///////////////////////////////////////
         // Node -- Overlapping query methods //
         ///////////////////////////////////////
-        
+
         /**
          * Returns a Node from this Node's subtree that overlaps the given
          * Interval.
@@ -545,7 +548,7 @@ public class IntervalSetTree<T extends Interval> implements Iterable<T> {
             }
             return x;
         }
-        
+
         /**
          * Returns the minimum Node from this Node's subtree that overlaps the
          * given Interval.
@@ -582,10 +585,10 @@ public class IntervalSetTree<T extends Interval> implements Iterable<T> {
                         if (!left.isNil() && left.maxEnd > t.start()) {
                             n = left;
                         } else {
-                            
+
                         // Left subtree cannot contain an overlapper. Check the
                         // right sub-tree.
-                        
+
                             if (n.start() >= t.end()) {
                                 // Nothing in the right subtree can overlap
                                 break;
@@ -603,7 +606,7 @@ public class IntervalSetTree<T extends Interval> implements Iterable<T> {
 
             return result;
         }
-        
+
         /**
          * An Iterator over all values in this Node's subtree that overlap the
          * given Interval t.
@@ -612,7 +615,7 @@ public class IntervalSetTree<T extends Interval> implements Iterable<T> {
         private Iterator<T> overlappers(T t) {
             return new OverlapperIterator(this, t);
         }
-        
+
         /**
          * The next Node (relative to this Node) which overlaps the given
          * Interval t
@@ -628,7 +631,7 @@ public class IntervalSetTree<T extends Interval> implements Iterable<T> {
             if (!right.isNil()) {
                 rtrn = x.right.minimumOverlappingNode(t);
             }
-            
+
             // If we didn't find it in the right subtree, walk up the tree and
             // check the parents of left-children as well as their right subtrees.
             while (!x.parent.isNil() && rtrn.isNil()) {
@@ -640,7 +643,7 @@ public class IntervalSetTree<T extends Interval> implements Iterable<T> {
             }
             return rtrn;
         }
-        
+
         /**
          * The number of Intervals in this Node's subtree that overlap the given
          * Interval t.
@@ -655,21 +658,21 @@ public class IntervalSetTree<T extends Interval> implements Iterable<T> {
         private int numOverlappingIntervals(T t) {
             int count = 0;
             Iterator<Node> iter = new OverlappingNodeIterator(this, t);
-            
+
             while (iter.hasNext()) {
                 count += iter.next().intervals.size();
             }
             return count;
         }
-        
+
         //////////////////////////////
         // Node -- Deletion methods //
         //////////////////////////////
-        
+
         //TODO: Should we rewire the Nodes rather than copying data?
         //      I suspect this method causes some code which seems like it
         //      should work to fail.
-        
+
         /**
          * Deletes this Node from its tree.
          * <p>
@@ -680,11 +683,11 @@ public class IntervalSetTree<T extends Interval> implements Iterable<T> {
          * overwriting the previous contents.
          */
         private boolean delete() {
-            
+
             if (isNil()) {  // Can't delete the sentinel node.
                 return false;
             }
-            
+
             size -= this.intervals.size();
             Node y = this;
 
@@ -694,8 +697,8 @@ public class IntervalSetTree<T extends Interval> implements Iterable<T> {
                 maxEndFixup();      // guaranteed to both exist and have at most
             }                       // one child, so we've converted the two-
                                     // child case to a one- or no-child case.
-            
-            
+
+
             Node x = y.left.isNil() ? y.right : y.left;
 
             x.parent = y.parent;
@@ -709,14 +712,14 @@ public class IntervalSetTree<T extends Interval> implements Iterable<T> {
                 y.parent.right = x;
                 y.maxEndFixup();
             }
-            
+
             if (y.isBlack) {
                 x.deleteFixup();
             }
-            
+
             return true;
         }
-        
+
         ////////////////////////////////////////////////
         // Node -- Tree-invariant maintenance methods //
         ////////////////////////////////////////////////
@@ -727,7 +730,7 @@ public class IntervalSetTree<T extends Interval> implements Iterable<T> {
         public boolean isRoot() {
             return (!isNil() && parent.isNil());
         }
-        
+
         /**
          * Whether or not this Node is the sentinel node.
          */
@@ -763,28 +766,28 @@ public class IntervalSetTree<T extends Interval> implements Iterable<T> {
         public boolean hasTwoChildren() {
             return !left.isNil() && !right.isNil();
         }
-        
+
         /**
          * Sets this Node's color to black.
          */
         private void blacken() {
             isBlack = true;
         }
-        
+
         /**
          * Sets this Node's color to red.
          */
         private void redden() {
             isBlack = false;
         }
-        
+
         /**
          * Whether or not this Node's color is red.
          */
         public boolean isRed() {
             return !isBlack;
         }
-        
+
         /**
          * A pointer to the grandparent of this Node.
          */
@@ -814,7 +817,7 @@ public class IntervalSetTree<T extends Interval> implements Iterable<T> {
             }
             maxEnd = val;
         }
-        
+
         /**
          * Sets the maxEnd value for this Node, and all Nodes up to the root of
          * the tree.
@@ -827,7 +830,7 @@ public class IntervalSetTree<T extends Interval> implements Iterable<T> {
                 n.resetMaxEnd();
             }
         }
-        
+
         /**
          * Performs a left-rotation on this Node.
          * @see - Cormen et al. "Introduction to Algorithms", 2nd ed, pp. 277-279.
@@ -839,9 +842,9 @@ public class IntervalSetTree<T extends Interval> implements Iterable<T> {
             if (!y.left.isNil()) {
                 y.left.parent = this;
             }
-            
+
             y.parent = parent;
-            
+
             if (parent.isNil()) {
                 root = y;
             } else if (isLeftChild()) {
@@ -849,14 +852,14 @@ public class IntervalSetTree<T extends Interval> implements Iterable<T> {
             } else {
                 parent.right = y;
             }
-            
+
             y.left = this;
             parent = y;
-            
+
             resetMaxEnd();
             y.resetMaxEnd();
         }
-        
+
         /**
          * Performs a right-rotation on this Node.
          * @see - Cormen et al. "Introduction to Algorithms", 2nd ed, pp. 277-279.
@@ -868,9 +871,9 @@ public class IntervalSetTree<T extends Interval> implements Iterable<T> {
             if (!y.right.isNil()) {
                 y.right.parent = this;
             }
-            
+
             y.parent = parent;
-            
+
             if (parent.isNil()) {
                 root = y;
             } else if (isLeftChild()) {
@@ -878,10 +881,10 @@ public class IntervalSetTree<T extends Interval> implements Iterable<T> {
             } else {
                 parent.right = y;
             }
-            
+
             y.right = this;
             parent = y;
-            
+
             resetMaxEnd();
             y.resetMaxEnd();
         }
@@ -895,7 +898,7 @@ public class IntervalSetTree<T extends Interval> implements Iterable<T> {
             start = o.start;
             end = o.end;
         }
-        
+
         /**
          * Returns a String representation of this Node.
          * <p>
@@ -908,14 +911,14 @@ public class IntervalSetTree<T extends Interval> implements Iterable<T> {
             if (isNil()) {
                 return "nil";
             } else {
-                String color = isBlack ? "black" : "red"; 
+                String color = isBlack ? "black" : "red";
                 return "start = " + start() +
                        "\nend = " + end() +
                        "\nmaxEnd = " + maxEnd +
                        "\ncolor = " + color;
             }
         }
-        
+
         /**
          * Ensures that red-black constraints and interval-tree constraints are
          * maintained after an insertion.
@@ -959,7 +962,7 @@ public class IntervalSetTree<T extends Interval> implements Iterable<T> {
             }
             root.blacken();
         }
-        
+
         /**
          * Ensures that red-black constraints and interval-tree constraints are
          * maintained after deletion.
@@ -1014,16 +1017,16 @@ public class IntervalSetTree<T extends Interval> implements Iterable<T> {
                         w.left.blacken();
                         x.parent.rightRotate();
                         x = root;
-                    }                    
+                    }
                 }
             }
             x.blacken();
         }
-        
+
         ///////////////////////////////
         // Node -- Debugging methods //
         ///////////////////////////////
-        
+
         /**
          * Whether or not the subtree rooted at this Node is a valid
          * binary-search tree.
@@ -1040,11 +1043,11 @@ public class IntervalSetTree<T extends Interval> implements Iterable<T> {
             if (max != null && compareTo(max) >= 0) {
                 return false;  // and less than max.
             }
-            
+
             // Children recursively call method with updated min/max.
             return left.isBST(min, this) && right.isBST(this, max);
         }
-        
+
         /**
          * Whether or not the subtree rooted at this Node is balanced.
          * <p>
@@ -1060,7 +1063,7 @@ public class IntervalSetTree<T extends Interval> implements Iterable<T> {
             }
             return left.isBalanced(black) && right.isBalanced(black);
         }
-        
+
         /**
          * Whether or not the subtree rooted at this Node has a valid
          * red-coloring.
@@ -1080,7 +1083,7 @@ public class IntervalSetTree<T extends Interval> implements Iterable<T> {
                         right.hasValidRedColoring();
             }
         }
-        
+
         /**
          * Whether or not the subtree rooted at this Node has consistent maxEnd
          * values.
@@ -1093,7 +1096,7 @@ public class IntervalSetTree<T extends Interval> implements Iterable<T> {
             if (isNil()) {                                    // 1. sentinel node
                 return true;
             }
-            
+
             if (hasNoChildren()) {                            // 2. leaf node
                 return maxEnd == end();
             } else {
@@ -1116,11 +1119,11 @@ public class IntervalSetTree<T extends Interval> implements Iterable<T> {
             }
         }
     }
-    
+
     ///////////////////////
     // Tree -- Iterators //
     ///////////////////////
-    
+
     /**
      * An Iterator which walks along this IntervalSetTree's Nodes in ascending order.
      */
@@ -1128,17 +1131,17 @@ public class IntervalSetTree<T extends Interval> implements Iterable<T> {
     private class TreeNodeIterator implements Iterator<Node> {
 
         private Node next;
-        
+
         private TreeNodeIterator(Node root) {
             next = root.minimumNode();
         }
-        
+
         @Override
         public boolean hasNext() {
             return !next.isNil();
         }
 
-        @Override 
+        @Override
         public Node next() {
             if (!hasNext()) {
                 throw new NoSuchElementException("Interval tree has no more elements.");
@@ -1146,7 +1149,7 @@ public class IntervalSetTree<T extends Interval> implements Iterable<T> {
             Node rtrn = next;
             next = rtrn.successor();
             return rtrn;
-        }   
+        }
     }
 
     /**
@@ -1154,11 +1157,11 @@ public class IntervalSetTree<T extends Interval> implements Iterable<T> {
      * ascending order.
      */
     private class TreeIterator implements Iterator<T> {
-        
+
         private Iterator<T> iter;
         private Node currentNode;
         private Node nextNode;
-        
+
         private TreeIterator(Node root) {
             currentNode = root.minimumNode();
             nextNode = currentNode.successor();
@@ -1182,26 +1185,26 @@ public class IntervalSetTree<T extends Interval> implements Iterable<T> {
             }
         }
     }
- 
+
     /**
      * An Iterator which walks along this IntervalSetTree's Nodes that overlap
      * a given Interval in ascending order.
      */
     private class OverlappingNodeIterator implements Iterator<Node> {
-        
+
         private Node next;
         private T interval;
-        
+
         private OverlappingNodeIterator(Node root, T t) {
             interval = t;
             next = root.minimumOverlappingNode(interval);
         }
-        
+
         @Override
         public boolean hasNext() {
             return !next.isNil();
         }
-        
+
         @Override
         public Node next() {
             if (!hasNext()) {
@@ -1218,12 +1221,12 @@ public class IntervalSetTree<T extends Interval> implements Iterable<T> {
      * a given Interval in ascending order.
      */
     private class OverlapperIterator implements Iterator<T> {
-        
+
         private Iterator<T> iter;
         private Node currentNode;
         private Node nextNode;
         private T t;
-        
+
         private OverlapperIterator(Node root, T t) {
             this.t = t;
             currentNode = root.minimumOverlappingNode(t);
@@ -1252,7 +1255,7 @@ public class IntervalSetTree<T extends Interval> implements Iterable<T> {
     ///////////////////////////////
     // Tree -- Debugging methods //
     ///////////////////////////////
-    
+
     /**
      * Whether or not this IntervalSetTree is a valid binary-search tree.
      * <p>
@@ -1279,7 +1282,7 @@ public class IntervalSetTree<T extends Interval> implements Iterable<T> {
      * testing.
      */
     @SuppressWarnings("unused")
-    private boolean isBalanced() { 
+    private boolean isBalanced() {
         int black = 0;
         Node x = root;
         while (!x.isNil()) {
@@ -1290,7 +1293,7 @@ public class IntervalSetTree<T extends Interval> implements Iterable<T> {
         }
         return root.isBalanced(black);
     }
-    
+
     /**
      * Whether or not this IntervalSetTree has a valid red coloring.
      * <p>
@@ -1306,7 +1309,7 @@ public class IntervalSetTree<T extends Interval> implements Iterable<T> {
     private boolean hasValidRedColoring() {
         return root.hasValidRedColoring();
     }
-    
+
     /**
      * Whether or not this IntervalSetTree has consistent maxEnd values.
      * <p>
